@@ -14,7 +14,6 @@ import { getStudentById } from '../services/studentApi';
 import { StudentDetails } from '../components/StudentDetails';
 import { CompetencyTable } from '../components/CompetencyTable';
 import { AttemptForm } from '../components/AttemptForm';
-import { ActivityLog } from '../components/ActivityLog';
 import { LoadingState } from '../components/LoadingState';
 import { ApiError } from '../services/api';
 
@@ -173,9 +172,6 @@ export const StudentPage: React.FC<StudentPageProps> = ({
           competencies={detail.competencies}
           onAttemptCreated={() => fetchStudentData(true)}
         />
-
-        {/* Operational Activity Audit Log (MongoDB) */}
-        <ActivityLog studentId={studentId} />
       </div>
     );
   };

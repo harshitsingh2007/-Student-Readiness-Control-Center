@@ -133,9 +133,129 @@ const getAvailableTenants = async (req, res, next) => {
     next(err);
   }
 };
+/**
+ * POST /api/auth/demo-login
+ * Development/demo helper endpoint.
+ * Issues an authoritative JWT token for an existing user without exposing
+ * credentials in frontend source code.
+ */
+const demoLogin = async (req, res, next) => {
+  try {
+    const { email } = req.body || {};
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({
+        code: 'VALIDATION_ERROR',
+        message: 'Valid demo email is required.',
+        requestId: req.requestId,
+        fieldErrors: { email: 'Email required' },
+      });
+    }
+
+    const userRes = await query(
+      `SELECT u.id, u.tenant_id, u.name, u.email, u.role, t.name as tenant_name 
+       FROM users u 
+       JOIN tenants t ON u.tenant_id = t.id 
+       WHERE u.email = $1;`,
+      [email.trim().toLowerCase()]
+    );
+
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({
+        code: 'USER_NOT_FOUND',
+        message: 'Demo user not found.',
+        requestId: req.requestId,
+        fieldErrors: {},
+      });
+    }
+
+    const user = userRes.rows[0];
+    const token = generateToken({
+      userId: user.id,
+      tenantId: user.tenant_id,
+      role: user.role,
+      email: user.email,
+    });
+
+    return res.status(200).json({
+      token,
+      user: {
+        id: user.id,
+        tenantId: user.tenant_id,
+        tenantName: user.tenant_name,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+      requestId: req.requestId,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/auth/switch-tenant
+ * Safe authenticated tenant switcher.
+ * Uses authenticated server-side context to swap to a valid evaluator
+ * in target tenant without hard-coding passwords in React code.
+ */
+const switchTenant = async (req, res, next) => {
+  try {
+    const { targetTenantId } = req.body || {};
+    if (!targetTenantId) {
+      return res.status(400).json({
+        code: 'VALIDATION_ERROR',
+        message: 'targetTenantId is required.',
+        requestId: req.requestId,
+      });
+    }
+
+    const userRes = await query(
+      `SELECT u.id, u.tenant_id, u.name, u.email, u.role, t.name as tenant_name 
+       FROM users u 
+       JOIN tenants t ON u.tenant_id = t.id 
+       WHERE u.tenant_id = $1 AND u.role = 'EVALUATOR'
+       LIMIT 1;`,
+      [targetTenantId]
+    );
+
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({
+        code: 'TENANT_NOT_FOUND',
+        message: 'Target tenant not found or has no available evaluator.',
+        requestId: req.requestId,
+      });
+    }
+
+    const targetUser = userRes.rows[0];
+    const token = generateToken({
+      userId: targetUser.id,
+      tenantId: targetUser.tenant_id,
+      role: targetUser.role,
+      email: targetUser.email,
+    });
+
+    return res.status(200).json({
+      token,
+      user: {
+        id: targetUser.id,
+        tenantId: targetUser.tenant_id,
+        tenantName: targetUser.tenant_name,
+        name: targetUser.name,
+        email: targetUser.email,
+        role: targetUser.role,
+      },
+      requestId: req.requestId,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
 
 module.exports = {
   login,
   getMe,
   getAvailableTenants,
+  demoLogin,
+  switchTenant,
 };

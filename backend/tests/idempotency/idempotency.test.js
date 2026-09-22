@@ -66,9 +66,9 @@ describe('Idempotency & Concurrent Submissions', () => {
 
     const responses = await Promise.all(promises);
 
-    // All successful responses (201 Created or 200/201 Replay)
+    // All 3 requests must succeed: 1 Created and the others Replayed with stored response!
     const successResponses = responses.filter(r => r.status === 201 || r.status === 200);
-    expect(successResponses.length).toBeGreaterThanOrEqual(1);
+    expect(successResponses.length).toBe(3);
 
     // Count attempts after
     const afterCountRes = await query(

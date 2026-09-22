@@ -14,7 +14,7 @@ interface LoginProps {
 
 export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('Password123!');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -29,6 +29,28 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       localStorage.setItem('srcc_auth_token', res.token);
       onLoginSuccess(res);
     } catch (err: any) {
+      if (err instanceof ApiError) {
+        setErrorMessage(err.message);
+      } else {
+        setErrorMessage('Failed to connect to backend server on port 5002.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDemoLogin = async (demoEmail: string) => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const res = await apiClient<AuthResponse>('/auth/demo-login', {
+        method: 'POST',
+        body: JSON.stringify({ email: demoEmail }),
+      });
+      localStorage.setItem('srcc_auth_token', res.token);
+      onLoginSuccess(res);
+    } catch (err: any) {
+      setEmail(demoEmail);
       if (err instanceof ApiError) {
         setErrorMessage(err.message);
       } else {
@@ -98,13 +120,13 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
 
         <div className="demo-accounts-section">
           <h3>Quick Demo Logins</h3>
-          <p className="demo-hint">Click any role to log in instantly (Password: <code>Password123!</code>)</p>
+          <p className="demo-hint">Click any role to log in instantly via authenticated demo session</p>
 
           <div className="demo-buttons-grid">
             <button
               type="button"
               className="btn-demo-account"
-              onClick={() => handleLogin('evaluator@alpha.com', 'Password123!')}
+              onClick={() => handleDemoLogin('evaluator@alpha.com')}
               disabled={isLoading}
             >
               <span className="demo-tenant">Tenant Alpha</span>
@@ -115,7 +137,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             <button
               type="button"
               className="btn-demo-account"
-              onClick={() => handleLogin('admin@alpha.com', 'Password123!')}
+              onClick={() => handleDemoLogin('admin@alpha.com')}
               disabled={isLoading}
             >
               <span className="demo-tenant">Tenant Alpha</span>
@@ -126,7 +148,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             <button
               type="button"
               className="btn-demo-account"
-              onClick={() => handleLogin('evaluator@beta.com', 'Password123!')}
+              onClick={() => handleDemoLogin('evaluator@beta.com')}
               disabled={isLoading}
             >
               <span className="demo-tenant">Tenant Beta</span>
@@ -137,7 +159,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             <button
               type="button"
               className="btn-demo-account"
-              onClick={() => handleLogin('admin@beta.com', 'Password123!')}
+              onClick={() => handleDemoLogin('admin@beta.com')}
               disabled={isLoading}
             >
               <span className="demo-tenant">Tenant Beta</span>

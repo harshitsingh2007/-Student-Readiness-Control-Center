@@ -43,7 +43,8 @@ student_competency_grid AS (
         s.current_readiness as stored_readiness,
         c.id as competency_id,
         c.key as competency_key,
-        c.weight
+        c.weight,
+        COALESCE(c.required, TRUE) as required
     FROM students s
     CROSS JOIN competencies c
     WHERE s.tenant_id = $1
@@ -57,8 +58,8 @@ calculated_readiness AS (
         g.student_name,
         g.stored_score,
         g.stored_readiness,
-        COUNT(c_att.score) as completed_competencies,
-        COUNT(g.competency_id) as total_required_competencies,
+        COUNT(CASE WHEN g.required = TRUE AND c_att.score IS NOT NULL THEN 1 END) as completed_required_competencies,
+        COUNT(CASE WHEN g.required = TRUE THEN 1 END) as total_required_competencies,
         ROUND(SUM(COALESCE(c_att.score, 0) * g.weight)::numeric, 2) as calculated_score
     FROM student_competency_grid g
     LEFT JOIN latest_attempts c_att 
@@ -75,13 +76,13 @@ SELECT
     calculated_score,
     stored_readiness,
     CASE 
-        WHEN completed_competencies < total_required_competencies THEN 'INCOMPLETE'
+        WHEN completed_required_competencies < total_required_competencies THEN 'INCOMPLETE'
         WHEN calculated_score >= 80 THEN 'READY'
         WHEN calculated_score >= 65 THEN 'NEARLY_READY'
         WHEN calculated_score >= 50 THEN 'DEVELOPING'
         ELSE 'NEEDS_PREPARATION'
     END as expected_readiness,
-    completed_competencies,
+    completed_required_competencies as completed_competencies,
     total_required_competencies
 FROM calculated_readiness
 WHERE 
@@ -91,7 +92,7 @@ WHERE
     OR (
         stored_readiness != (
             CASE 
-                WHEN completed_competencies < total_required_competencies THEN 'INCOMPLETE'
+                WHEN completed_required_competencies < total_required_competencies THEN 'INCOMPLETE'
                 WHEN calculated_score >= 80 THEN 'READY'
                 WHEN calculated_score >= 65 THEN 'NEARLY_READY'
                 WHEN calculated_score >= 50 THEN 'DEVELOPING'

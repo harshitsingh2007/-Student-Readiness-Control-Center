@@ -38,61 +38,62 @@ const checkOrAcquireIdempotency = async (client, tenantId, key, fingerprint, ttl
   const now = new Date();
   const expiresAt = new Date(now.getTime() + ttlHours * 60 * 60 * 1000);
 
-  // 1. Check if record already exists with row-level lock
-  const existingRes = await client.query(
-    `SELECT tenant_id, key, request_fingerprint, status, response_status_code, response_body, expires_at 
-     FROM idempotency_records 
-     WHERE tenant_id = $1 AND key = $2 
-     FOR UPDATE;`,
-    [tenantId, key]
-  );
-
-  if (existingRes.rows.length > 0) {
-    const record = existingRes.rows[0];
-
-    // Check if expired
-    if (new Date(record.expires_at) < now) {
-      // Re-initialize expired record
-      await client.query(
-        `UPDATE idempotency_records 
-         SET request_fingerprint = $1, status = 'IN_PROGRESS', response_status_code = NULL, response_body = NULL, created_at = NOW(), expires_at = $2 
-         WHERE tenant_id = $3 AND key = $4;`,
-        [fingerprint, expiresAt, tenantId, key]
-      );
-      return { action: 'ACQUIRED' };
-    }
-
-    // Check fingerprint match
-    if (record.request_fingerprint !== fingerprint) {
-      return {
-        action: 'MISMATCH',
-        message: 'Idempotency key has already been used with a different request payload.',
-      };
-    }
-
-    // Check completion status
-    if (record.status === 'COMPLETED') {
-      return {
-        action: 'REPLAY',
-        statusCode: record.response_status_code || 200,
-        responseBody: record.response_body,
-      };
-    }
-
-    if (record.status === 'IN_PROGRESS') {
-      return {
-        action: 'CONCURRENT',
-        message: 'A concurrent request with this idempotency key is currently being processed.',
-      };
-    }
-  }
-
-  // 2. Not found: Insert new IN_PROGRESS record
-  await client.query(
-    `INSERT INTO idempotency_records (tenant_id, key, request_fingerprint, status, expires_at) 
-     VALUES ($1, $2, $3, 'IN_PROGRESS', $4);`,
+  // Redesigned atomic concurrency-safe idempotency acquisition:
+  // Uses INSERT ... ON CONFLICT (tenant_id, key) DO UPDATE
+  // This avoids race conditions on non-existent rows that SELECT FOR UPDATE cannot lock.
+  // If concurrent transactions arrive with the same key, PostgreSQL puts subsequent
+  // transactions into row-lock wait until the first transaction COMMITS or ROLLS BACK.
+  const result = await client.query(
+    `INSERT INTO idempotency_records (tenant_id, key, request_fingerprint, status, expires_at)
+     VALUES ($1, $2, $3, 'IN_PROGRESS', $4)
+     ON CONFLICT (tenant_id, key) DO UPDATE 
+     SET key = EXCLUDED.key
+     RETURNING status, request_fingerprint, response_status_code, response_body, expires_at, (xmax = 0) AS is_new;`,
     [tenantId, key, fingerprint, expiresAt]
   );
+
+  const record = result.rows[0];
+
+  // 1. Newly inserted: primary transaction acquired the lock
+  if (record.is_new) {
+    return { action: 'ACQUIRED' };
+  }
+
+  // 2. Check if existing record has expired
+  if (new Date(record.expires_at) < now) {
+    await client.query(
+      `UPDATE idempotency_records 
+       SET request_fingerprint = $1, status = 'IN_PROGRESS', response_status_code = NULL, response_body = NULL, created_at = NOW(), expires_at = $2 
+       WHERE tenant_id = $3 AND key = $4;`,
+      [fingerprint, expiresAt, tenantId, key]
+    );
+    return { action: 'ACQUIRED' };
+  }
+
+  // 3. Same key + different fingerprint => 422 Unprocessable Entity
+  if (record.request_fingerprint !== fingerprint) {
+    return {
+      action: 'MISMATCH',
+      message: 'Idempotency key has already been used with a different request payload.',
+    };
+  }
+
+  // 4. Same key + same fingerprint: return/replay original result
+  if (record.status === 'COMPLETED') {
+    return {
+      action: 'REPLAY',
+      statusCode: record.response_status_code || 200,
+      responseBody: record.response_body,
+    };
+  }
+
+  // 5. In-progress fallback (if transaction still active or interrupted)
+  if (record.status === 'IN_PROGRESS') {
+    return {
+      action: 'CONCURRENT',
+      message: 'A concurrent request with this idempotency key is currently being processed.',
+    };
+  }
 
   return { action: 'ACQUIRED' };
 };
@@ -114,7 +115,8 @@ const completeIdempotency = async (client, tenantId, key, statusCode, responseBo
  */
 const releaseIdempotencyOnFailure = async (client, tenantId, key) => {
   try {
-    await client.query(
+    const { pool } = require('../config/postgres');
+    await pool.query(
       `DELETE FROM idempotency_records WHERE tenant_id = $1 AND key = $2 AND status = 'IN_PROGRESS';`,
       [tenantId, key]
     );

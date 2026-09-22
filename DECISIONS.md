@@ -23,23 +23,37 @@ Use PostgreSQL as the sole ACID-compliant relational source of truth (tenants, u
 
 ---
 
-## Decision 2: Idempotency Strategy via SHA-256 Fingerprinting and Pessimistic Row Locking
+## Decision 2: Idempotency Strategy via SHA-256 Fingerprinting and Atomic `INSERT ... ON CONFLICT` Concurrency Locking
 
 ### Context
 Network retries, double-clicks, and mobile reconnections can resend duplicate attempt submissions. Reused keys with different payloads must be rejected, while identical requests must replay the stored response.
+Crucially, a simple `SELECT ... FOR UPDATE` does **not** safely lock a non-existent idempotency record in PostgreSQL: when a row does not yet exist, `SELECT FOR UPDATE` returns 0 rows without acquiring a row-level lock. If 3 concurrent requests arrive simultaneously, all three see 0 rows and race to `INSERT`, causing unhandled unique constraint violations or duplicate writes.
 
 ### Decision
-Enforce composite uniqueness `PRIMARY KEY (tenant_id, key)` on `idempotency_records`. During attempt submission, acquire an exclusive row lock (`SELECT FOR UPDATE`) on the idempotency key and on the target student row. Store a SHA-256 fingerprint of the normalized request payload.
+Enforce composite uniqueness `PRIMARY KEY (tenant_id, key)` on `idempotency_records`. Redesign the acquisition flow using PostgreSQL atomic statement:
+```sql
+INSERT INTO idempotency_records (tenant_id, key, request_fingerprint, status, expires_at)
+VALUES ($1, $2, $3, 'IN_PROGRESS', $4)
+ON CONFLICT (tenant_id, key) DO UPDATE
+SET key = EXCLUDED.key
+RETURNING status, request_fingerprint, response_status_code, response_body, (xmax = 0) AS is_new;
+```
+
+### Concurrency Mechanics & Invariants
+1. **Serialization via Lock-Wait**: When multiple concurrent requests arrive with the same `(tenant_id, key)`, the primary request inserts the row (`is_new = true`). PostgreSQL places subsequent concurrent transactions into an automatic lock-wait state on that tuple until the primary transaction COMMITS or ROLLS BACK.
+2. **Replay on Commit**: When the primary transaction commits with `status = 'COMPLETED'` and the serialized response payload, waiting transactions wake up, execute the `ON CONFLICT` clause against the committed tuple, detect matching SHA-256 fingerprints, and return the replayed response with `X-Idempotency-Replay: true`.
+3. **Rollback Resilience**: If the primary transaction encounters an error and rolls back, the waiting transaction's `INSERT` executes (`is_new = true`), seamlessly taking over execution without dropped submissions.
+4. **Tampering Detection**: If a request attempts to reuse the key with a modified payload, the SHA-256 fingerprint differs, immediately triggering a `422 Unprocessable Entity` rejection.
 
 ### Trade-offs & Analysis
 - **Positives**:
-  - Serializes concurrent identical requests with zero chance of double-counting attempts.
+  - Eliminates unhandled PostgreSQL unique constraint race conditions.
+  - Guarantees exactly ONE attempt created and exactly ONE outbox event produced across concurrent retries.
   - Replays original stored response (`status_code` and `response_body`) with `X-Idempotency-Replay: true`.
-  - Detecting fingerprint mismatch rejects payload tampering with `422 Unprocessable Entity`.
 - **Negatives**:
-  - Row locking holds database connections for the duration of the transaction (~10-25ms).
+  - Concurrent requests with the same key wait for the primary transaction to commit (~15-30ms).
 - **Justification**:
-  - For assessment submissions, data integrity is paramount over high-frequency sub-millisecond writes.
+  - Assessment integrity demands strict idempotency guarantees over sub-millisecond concurrency shortcuts.
 
 ---
 

@@ -53,10 +53,10 @@ sequenceDiagram
     API->>Auth: Verify JWT & extract { userId, tenantId, role }
     Auth-->>API: Authoritative context established (tenant-alpha)
     API->>PG: BEGIN Transaction
-    API->>PG: SELECT ... FROM idempotency_records WHERE tenant_id = $1 AND key = $2 FOR UPDATE
+    API->>PG: INSERT INTO idempotency_records ... ON CONFLICT (tenant_id, key) DO UPDATE (Atomic Lock-Wait)
     API->>PG: SELECT ... FROM students WHERE id = $1 AND tenant_id = $2 FOR UPDATE
     API->>PG: INSERT INTO attempts (...)
-    API->>PG: Recompute readiness (weighted mean, latest tie-breaker)
+    API->>PG: Recompute readiness (weighted mean, latest tie-breaker, required vs optional)
     API->>PG: UPDATE students (current_score, current_readiness, version = version + 1)
     API->>PG: INSERT INTO outbox_events (event_id, payload, status = 'PENDING')
     API->>PG: UPDATE idempotency_records (status = 'COMPLETED', response_body)
@@ -202,3 +202,49 @@ curl -s -w "\nHTTP Status: %{http_code}\n" \
 | **Frontend Discriminated Union & AbortController** | `frontend/src/hooks/useStudents.ts` |
 | **Seeded Defect Fix** | `frontend/src/App.tsx` & `frontend/src/tests/frontendResilience.test.tsx` |
 | **Incident Investigation Document** | `INCIDENT.md` |
+
+---
+
+## 9. Oral Defense Questions & Authoritative Explanations
+
+### Q1: Why is PostgreSQL the relational source of truth instead of MongoDB?
+- **Answer**: Student readiness evaluation requires multi-entity ACID consistency (student profile, competencies, attempts, versions, and outbox records). Calculating readiness must be transactionally isolated so that parallel evaluations do not read stale intermediate states. Relational foreign keys, composite unique constraints (`tenant_id, key`), and window functions (`ROW_NUMBER() OVER`) provide deterministic guarantees that document databases cannot enforce without distributed multi-document transaction overhead.
+
+### Q2: Why is MongoDB used strictly for append-only events?
+- **Answer**: Operational activity tracking (auditing evaluator clicks, retry attempts, rejected submissions, and throughput analytics) produces high-volume append-only records. Separating high-frequency operational telemetry into MongoDB keeps the primary relational PostgreSQL database lean and fast. MongoDB aggregation pipelines (`$facet`, `$group`) are optimized for time-series anomaly reporting without contending with primary relational student locks.
+
+### Q3: Why is idempotency required, and why is `SELECT ... FOR UPDATE` alone insufficient?
+- **Answer**: 
+  1. Network retries, mobile reconnects, and rapid evaluator double-clicks can resend identical POST requests. Without idempotency, multiple duplicate attempt rows are inserted and duplicate success events pollute the audit log.
+  2. A simple `SELECT ... FOR UPDATE` only locks **existing** rows. When an idempotency key is submitted for the first time, `SELECT ... FOR UPDATE` returns 0 rows without acquiring an exclusive lock. Concurrent identical requests all see 0 rows and race to `INSERT`, hitting unhandled duplicate key violations.
+  3. **The Solution**: We use atomic `INSERT ... ON CONFLICT (tenant_id, key) DO UPDATE SET key = EXCLUDED.key RETURNING ...`. The first transaction inserts and holds an exclusive tuple lock. Concurrent transactions automatically wait in PostgreSQL lock-wait until the first commits with `status = 'COMPLETED'` and the response body. They wake up, detect the completed record and matching SHA-256 fingerprint, and return the replayed outcome with zero duplicate attempts!
+
+### Q4: How does multi-tenant isolation work?
+- **Answer**:
+  1. Tenant identity is **never** trusted from client request bodies, query strings, or arbitrary headers (`req.body.tenantId` is stripped).
+  2. Tenant identity is derived strictly from verified, cryptographically signed server-side JWT authentication context (`req.user.tenantId`).
+  3. Every database query is explicitly parameterized and tenant-scoped (`WHERE tenant_id = $1`).
+  4. Cross-tenant access returns a non-disclosing `404 Not Found` (`res.safeNotFound('Student')`) to prevent disclosing whether an entity ID exists in another tenant.
+
+### Q5: How does the frontend prevent stale responses and race conditions?
+- **Answer**:
+  1. **Debounce (300ms)**: Eliminates parallel queries on fast keystrokes.
+  2. **AbortController**: Each new request aborts any prior in-flight request via `signal`.
+  3. **Sequence Counter**: A strictly incrementing counter (`++sequenceCounterRef.current`) tags every dispatched request. If an older request resolves after a newer request, the hook discards the older response because its sequence ID is stale.
+  4. **Tenant Switch Isolation**: When switching tenants, the hook aborts pending requests, resets list and filter state, and clears cached student data so old tenant records never display.
+
+### Q6: How are credentials protected in the frontend?
+- **Answer**:
+  Zero real passwords exist in React source code or client bundles. Demo role switching uses authenticated server-side endpoints (`POST /api/auth/switch-tenant` and `POST /api/auth/demo-login`). The login form password field initializes empty (`""`), and standard password entry is required for standard logins.
+
+### Q7: How is student readiness calculated and tie-broken?
+- **Answer**:
+  1. Competencies are data-driven from PostgreSQL (`competencies` table) with configurable `weight`, `active`, and `required` flags.
+  2. For each active competency, we select the latest non-void attempt with deterministic tie-breaking: `submitted_at DESC, id DESC` (higher attempt ID wins on identical timestamps).
+  3. If any *required* competency is missing, the readiness status is strictly `INCOMPLETE`.
+  4. Weighted score is calculated as `SUM(score * weight) / totalActiveWeight` and rounded to 2 decimal places.
+  5. Authoritative thresholds: $\ge 80.00$ (`READY`), $65-79.99$ (`NEARLY_READY`), $50-64.99$ (`DEVELOPING`), $< 50.00$ (`NEEDS_PREPARATION`).
+
+### Q8: How does the Transactional Outbox handle MongoDB outages?
+- **Answer**:
+  PostgreSQL writes the attempt and an `outbox_events` record with `status = 'PENDING'` inside the SAME ACID transaction. If MongoDB is offline, PostgreSQL still commits successfully and returns `201 Created` to the user. A background flusher polls pending events and upserts to MongoDB using `eventId` as a deduplication key. When MongoDB recovers, events flush with zero loss and zero duplicate entries.

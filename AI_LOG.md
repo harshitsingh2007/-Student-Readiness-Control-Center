@@ -79,10 +79,32 @@ In compliance with the assessment's AI use disclosure policy, this document accu
 
 ---
 
+## Contribution Log Entry #5: Atomic Concurrency Redesign, Zero Hardcoded Passwords, and Competency Extensibility
+
+- **Tool Used**: Antigravity AI Assistant
+- **Prompt**:
+  > "Redesign idempotency using atomic INSERT ... ON CONFLICT, make competencies configurable with required/code columns, remove hard-coded passwords from React, preserve previousData on refresh failure in Dashboard, and verify all assessment requirements."
+- **Output Accepted**:
+  - `idempotencyService.js`: Replaced `SELECT ... FOR UPDATE` with atomic `INSERT ... ON CONFLICT (tenant_id, key) DO UPDATE SET key = EXCLUDED.key RETURNING ...`. Concurrent requests wait on the tuple lock, and replayed requests receive the stored response without racing on non-existent rows.
+  - `competencies`: Added `required` (BOOLEAN NOT NULL DEFAULT TRUE) and `code` columns. Updated `readinessService.js` and `a4ScoringQuery.js` so optional competencies (where `required = false`) do not force `INCOMPLETE` when missing.
+  - `authController.js`: Added `POST /api/auth/switch-tenant` and `POST /api/auth/demo-login`.
+  - `Login.tsx` & `App.tsx`: Removed all hardcoded `Password123!` strings from React source code. Password field initializes empty, and tenant switching uses authenticated server-side session exchange.
+  - `Dashboard.tsx`: Fixed `activeData` fallback so background refresh failure preserves `state.previousData` alongside the error banner.
+- **Output Rejected**:
+  - Initial attempt in `computeReadinessFromAttempts` to include optional missing competencies in the denominator caused score dilution on optional electives.
+- **Correction Made**:
+  - Corrected `totalWeight` summation in `readinessService.js` to only accumulate weights for required competencies and attempted optional competencies.
+- **Verification Performed**:
+  - `npm --prefix backend test`: 28/28 tests passed.
+  - `npm --prefix frontend test`: 4/4 tests passed.
+  - `npm --prefix frontend run build`: Clean compilation in <1s with zero errors.
+
+---
+
 ## Summary of Verification Evidence
-- Domain Unit Tests: 13/13 passed.
-- API Integration Tests: 11/11 passed.
-- Idempotency & Concurrency Tests: 3/3 passed.
+- Domain Unit Tests: 14/14 passed.
+- API Integration Tests: 10/10 passed.
+- Idempotency & Concurrency Tests: 3/3 passed (all 3 concurrent identical requests succeed).
 - MongoDB Failure Injection Tests: 1/1 passed.
-- Frontend Resilience Tests: 3/3 passed.
-- Total Tests: 31/31 passed across all test suites.
+- Frontend Resilience Tests: 4/4 passed (out-of-order discard, tenant switch abort, 409 conflict UI, refresh error data preservation).
+- Total Tests: 32/32 passed across all test suites.

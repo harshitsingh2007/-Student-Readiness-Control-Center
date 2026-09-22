@@ -23,7 +23,7 @@ const { query } = require('../config/postgres');
 const getActiveCompetencies = async (db = null) => {
   const executor = db || { query };
   const res = await executor.query(
-    `SELECT id, key, name, weight::float as weight, active 
+    `SELECT id, key, COALESCE(code, key) as code, name, weight::float as weight, active, COALESCE(required, TRUE) as required 
      FROM competencies 
      WHERE active = TRUE 
      ORDER BY key ASC;`
@@ -59,14 +59,19 @@ const computeReadinessFromAttempts = (activeCompetencies, nonVoidAttempts) => {
   let totalWeight = 0;
 
   for (const comp of activeCompetencies) {
-    totalWeight += comp.weight;
     const compAttempts = attemptsByComp.get(comp.id) || [];
+    const isRequired = comp.required !== false;
 
     if (compAttempts.length === 0) {
-      missingCompetencies.push({ key: comp.key, name: comp.name });
+      if (isRequired) {
+        totalWeight += comp.weight;
+        missingCompetencies.push({ key: comp.key, name: comp.name });
+      }
       evidence[comp.key] = null;
       continue;
     }
+
+    totalWeight += comp.weight;
 
     // Deterministic sort: submitted_at DESC, then id DESC
     compAttempts.sort((a, b) => {

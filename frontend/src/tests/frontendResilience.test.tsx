@@ -81,6 +81,59 @@ describe('Frontend State Correctness & Resilience', () => {
       vi.useRealTimers();
       mockGetStudents.mockRestore();
     });
+
+    test('refresh failure preserves previous valid data alongside error message', async () => {
+      vi.useFakeTimers();
+
+      const mockGetStudents = vi.spyOn(studentApi, 'getStudents')
+        .mockResolvedValueOnce({
+          items: [{
+            id: 's1',
+            name: 'Initial Student',
+            email: 's1@alpha.edu',
+            version: 1,
+            currentScore: 85,
+            currentReadiness: 'READY',
+            createdAt: '2026-09-01T00:00:00Z',
+            updatedAt: '2026-09-01T00:00:00Z',
+          }],
+          pagination: { page: 1, limit: 10, totalItems: 1, totalPages: 1 },
+          summaryScore: 85,
+          requestId: 'req_test_123',
+        })
+        .mockRejectedValueOnce(new ApiError(500, { message: 'Transient gateway error' }));
+
+      const { result } = renderHook(() =>
+        useStudents({ search: '', status: '', page: 1 }, 'tenant-alpha')
+      );
+
+      // Pass debounce for initial fetch
+      await act(async () => {
+        vi.advanceTimersByTime(350);
+      });
+
+      // 1. Initial success
+      expect(result.current.state.status).toBe('success');
+      if (result.current.state.status === 'success') {
+        expect(result.current.state.data.items[0].name).toBe('Initial Student');
+      }
+
+      // 2. Trigger background refresh
+      await act(async () => {
+        result.current.refresh();
+      });
+
+      // 3. Status is 'error', but previous valid data remains available!
+      expect(result.current.state.status).toBe('error');
+      if (result.current.state.status === 'error') {
+        expect(result.current.state.message).toBe('Transient gateway error');
+        expect(result.current.state.previousData).toBeDefined();
+        expect(result.current.state.previousData?.items[0].name).toBe('Initial Student');
+      }
+
+      vi.useRealTimers();
+      mockGetStudents.mockRestore();
+    });
   });
 
   describe('Seeded Defect Fix: Multi-Boundary Tenant Switching', () => {

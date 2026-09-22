@@ -17,12 +17,12 @@ INSERT INTO users (id, tenant_id, name, email, password_hash, role) VALUES
 ON CONFLICT (tenant_id, email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
 
 -- 3. Insert Data-Driven Competencies
-INSERT INTO competencies (id, key, name, weight, active) VALUES
-('comp-fe', 'frontend', 'Frontend Development', 0.3000, TRUE),
-('comp-be', 'backend', 'Backend Engineering', 0.3000, TRUE),
-('comp-db', 'databases', 'Database Systems', 0.2500, TRUE),
-('comp-ps', 'problem_solving', 'Problem Solving & Logic', 0.1500, TRUE)
-ON CONFLICT (key) DO UPDATE SET weight = EXCLUDED.weight, active = EXCLUDED.active;
+INSERT INTO competencies (id, key, code, name, weight, active, required) VALUES
+('comp-fe', 'frontend', 'frontend', 'Frontend Development', 0.3000, TRUE, TRUE),
+('comp-be', 'backend', 'backend', 'Backend Engineering', 0.3000, TRUE, TRUE),
+('comp-db', 'databases', 'databases', 'Database Systems', 0.2500, TRUE, TRUE),
+('comp-ps', 'problem_solving', 'problem_solving', 'Problem Solving & Logic', 0.1500, TRUE, TRUE)
+ON CONFLICT (key) DO UPDATE SET weight = EXCLUDED.weight, active = EXCLUDED.active, required = EXCLUDED.required, code = EXCLUDED.code;
 
 -- 4. Insert Students for Tenant Alpha
 INSERT INTO students (id, tenant_id, name, email, version, current_score, current_readiness) VALUES

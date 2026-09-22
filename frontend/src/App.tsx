@@ -73,24 +73,23 @@ export const App: React.FC = () => {
   };
 
   /**
-   * Seeded Defect Fix: Multi-Boundary Tenant Switcher
-   * Swaps authenticated token, clears stale detail views, and redirects to root dashboard.
+   * Multi-Boundary Tenant Switcher
+   * Swaps authenticated token via secure server-side endpoint, clears stale detail views,
+   * resets URL path, and updates active user context.
    */
   const handleSwitchTenant = async (newTenantId: string) => {
     if (!user || user.tenantId === newTenantId) return;
 
     try {
-      // Switch to corresponding evaluator for target tenant
-      const email = newTenantId === 'tenant-beta' ? 'evaluator@beta.com' : 'evaluator@alpha.com';
-      const authRes = await apiClient<AuthResponse>('/auth/login', {
+      const authRes = await apiClient<AuthResponse>('/auth/switch-tenant', {
         method: 'POST',
-        body: JSON.stringify({ email, password: 'Password123!' }),
+        body: JSON.stringify({ targetTenantId: newTenantId }),
       });
 
       // 1. Update stored token
       localStorage.setItem('srcc_auth_token', authRes.token);
 
-      // 2. Clear stale student detail view immediately
+      // 2. Clear stale student detail view immediately and reset URL
       setSelectedStudentId(null);
       window.history.pushState({}, '', '/');
 

@@ -52,10 +52,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }
   }, [showAnalyticsModal, currentTenantId]);
 
-  // Extract data based on discriminated union state
+  // Extract data based on discriminated union state (Section 8: preserves previousData on background refresh failure!)
   const isLoading = state.status === 'loading';
   const isRefreshing = state.status === 'refreshing';
-  const activeData = (state.status === 'success' || state.status === 'refreshing') ? state.data : null;
+  const activeData =
+    state.status === 'success' || state.status === 'refreshing'
+      ? state.data
+      : state.status === 'error' && state.previousData
+      ? state.previousData
+      : null;
   const errorMessage = state.status === 'error' ? state.message : undefined;
 
   return (

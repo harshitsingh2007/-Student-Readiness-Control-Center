@@ -141,7 +141,7 @@ describe('Readiness Calculation Domain Logic', () => {
     test('data-driven extensibility: supports adding a 5th competency seamlessly', () => {
       const fiveCompetencies = [
         ...activeCompetencies.map(c => ({ ...c, weight: 0.20 })),
-        { id: 'comp-devops', key: 'devops', name: 'DevOps & Cloud', weight: 0.20 },
+        { id: 'comp-devops', key: 'devops', code: 'devops', name: 'DevOps & Cloud', weight: 0.20, required: true },
       ];
       const attempts = [
         ...buildAttempts({ fe: 80, be: 80, db: 80, ps: 80 }),
@@ -151,6 +151,18 @@ describe('Readiness Calculation Domain Logic', () => {
       expect(result.status).toBe('READY');
       expect(result.score).toBe(80);
       expect(result.evidence.devops.score).toBe(80);
+    });
+
+    test('optional competency (required = false) does not mark student INCOMPLETE when missing', () => {
+      const fiveWithOptional = [
+        ...activeCompetencies, // 4 required competencies with total weight 1.0
+        { id: 'comp-extra', key: 'extra', code: 'extra', name: 'Extra Elective', weight: 0.10, required: false },
+      ];
+      // Only 4 required competencies completed with 85 average
+      const attempts = buildAttempts({ fe: 85, be: 85, db: 85, ps: 85 });
+      const result = computeReadinessFromAttempts(fiveWithOptional, attempts);
+      expect(result.status).toBe('READY');
+      expect(result.missingCompetencies).toHaveLength(0);
     });
   });
 });

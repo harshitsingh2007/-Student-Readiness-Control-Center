@@ -7,7 +7,6 @@
  *      Proves the fix for the seeded defect and guarantees state correctness.
  */
 
-import React from 'react';
 import { describe, test, expect, vi } from 'vitest';
 import { render, screen, fireEvent, renderHook, act } from '@testing-library/react';
 import { StudentDetails } from '../components/StudentDetails';
@@ -89,8 +88,8 @@ describe('Frontend State Correctness & Resilience', () => {
       vi.useFakeTimers();
 
       let abortSignalSeen: AbortSignal | undefined;
-      const mockGetStudents = vi.spyOn(studentApi, 'getStudents').mockImplementation((filters) => {
-        abortSignalSeen = filters.signal;
+      const mockGetStudents = vi.spyOn(studentApi, 'getStudents').mockImplementation((filters?: any) => {
+        abortSignalSeen = filters?.signal;
         return new Promise(() => {}); // Never resolves (simulating slow 3G)
       });
 

@@ -144,10 +144,8 @@ a:hover {
 
 .main-content {
   flex: 1;
-  max-width: 1320px;
   width: 100%;
-  margin: 0 auto;
-  padding: 32px 24px;
+  padding: 32px 40px;
 }
 
 /* ==========================================================================
@@ -166,9 +164,8 @@ a:hover {
 }
 
 .navbar-container {
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 14px 24px;
+  width: 100%;
+  padding: 14px 40px;
   display: flex;
   justify-content: space-between;
   align-items: center;

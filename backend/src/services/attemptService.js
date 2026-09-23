@@ -134,6 +134,7 @@ const submitAttempt = async ({
     const eventId = await recordOutboxEvent(client, tenantId, 'attempt.succeeded', {
       studentId,
       attemptId: newAttempt.id,
+      assessmentId: newAttempt.id,
       idempotencyKey,
       requestId,
       metadata: {

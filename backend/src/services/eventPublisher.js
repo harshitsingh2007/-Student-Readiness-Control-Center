@@ -80,11 +80,13 @@ const flushPendingOutboxEvents = async () => {
               eventId: row.event_id,
               tenantId: row.tenant_id,
               studentId: payload.studentId || null,
-              attemptId: payload.attemptId || null,
+              attemptId: payload.attemptId || payload.assessmentId || null,
+              assessmentId: payload.assessmentId || payload.attemptId || null,
               idempotencyKey: payload.idempotencyKey || payload.metadata?.idempotencyKey || null,
               requestId: payload.requestId || 'unknown',
               eventType: row.event_type,
               occurredAt: new Date(payload.occurredAt || Date.now()),
+              reason: payload.reason || payload.metadata?.reason || null,
               metadata: payload.metadata || {},
             },
           },
@@ -118,32 +120,85 @@ const flushPendingOutboxEvents = async () => {
 };
 
 /**
- * Records a rejection event directly to MongoDB (e.g. invalid payload or unauthorized).
+ * Records a rejection event reliably.
+ * Persists to PostgreSQL outbox first if tenant is known, then attempts immediate MongoDB write.
+ * If MongoDB is temporarily offline, the event remains PENDING in outbox for retry.
  */
 const recordRejectedEvent = async ({ tenantId, studentId, requestId, reason, metadata = {} }) => {
+  const eventId = `rej_${uuidv4()}`;
+  const effectiveTenantId = tenantId && tenantId !== 'unauthenticated' ? tenantId : null;
+
+  const fullPayload = {
+    eventId,
+    tenantId: tenantId || 'unauthenticated',
+    studentId: studentId || null,
+    attemptId: null,
+    assessmentId: null,
+    idempotencyKey: metadata.idempotencyKey || null,
+    requestId: requestId || 'unknown',
+    eventType: 'attempt.rejected',
+    occurredAt: new Date().toISOString(),
+    reason: reason || 'UNKNOWN_REJECTION',
+    metadata: {
+      reason,
+      ...metadata,
+    },
+  };
+
+  let outboxRowId = null;
+
+  // 1. Persist to PostgreSQL outbox_events if tenant is known (prevents lost events on MongoDB outage)
+  if (effectiveTenantId) {
+    try {
+      const outboxRes = await query(
+        `INSERT INTO outbox_events (tenant_id, event_id, event_type, payload, status)
+         VALUES ($1, $2, 'attempt.rejected', $3, 'PENDING')
+         RETURNING id;`,
+        [effectiveTenantId, eventId, JSON.stringify(fullPayload)]
+      );
+      outboxRowId = outboxRes.rows[0]?.id;
+    } catch (pgErr) {
+      console.warn('[OutboxPublisher] PostgreSQL outbox queueing warning for rejected event:', pgErr.message);
+    }
+  }
+
+  // 2. Direct write or immediate flush attempt to MongoDB
   try {
     const mongoDb = await connectMongo();
-    if (!mongoDb) return;
-    const collection = getActivityCollection();
-    if (!collection) return;
+    if (mongoDb) {
+      const collection = getActivityCollection();
+      if (collection) {
+        await collection.updateOne(
+          { eventId },
+          {
+            $setOnInsert: {
+              eventId,
+              tenantId: fullPayload.tenantId,
+              studentId: fullPayload.studentId,
+              attemptId: null,
+              assessmentId: null,
+              idempotencyKey: fullPayload.idempotencyKey,
+              requestId: fullPayload.requestId,
+              eventType: 'attempt.rejected',
+              occurredAt: new Date(fullPayload.occurredAt),
+              reason: fullPayload.reason,
+              metadata: fullPayload.metadata,
+            },
+          },
+          { upsert: true }
+        );
 
-    await collection.insertOne({
-      eventId: `rej_${uuidv4()}`,
-      tenantId: tenantId || 'unauthenticated',
-      studentId: studentId || null,
-      attemptId: null,
-      idempotencyKey: metadata.idempotencyKey || null,
-      requestId: requestId || 'unknown',
-      eventType: 'attempt.rejected',
-      occurredAt: new Date(),
-      reason: reason || 'UNKNOWN_REJECTION',
-      metadata: {
-        reason,
-        ...metadata,
-      },
-    });
+        // Mark as PUBLISHED in outbox if it was queued
+        if (outboxRowId) {
+          await query(
+            `UPDATE outbox_events SET status = 'PUBLISHED', published_at = NOW() WHERE id = $1;`,
+            [outboxRowId]
+          ).catch(() => {});
+        }
+      }
+    }
   } catch (err) {
-    console.warn('[OutboxPublisher] Could not log rejection event to MongoDB:', err.message);
+    console.warn('[OutboxPublisher] MongoDB unavailable; rejection event safely preserved in outbox for retry:', err.message);
   }
 };
 

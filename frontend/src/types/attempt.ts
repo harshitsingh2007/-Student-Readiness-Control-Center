@@ -36,6 +36,7 @@ export interface OperationalActivityEvent {
   tenantId: string;
   studentId: string | null;
   attemptId: number | string | null;
+  assessmentId?: number | string | null;
   requestId: string;
   eventType: 'attempt.succeeded' | 'attempt.rejected' | string;
   occurredAt: string;

@@ -319,4 +319,31 @@ describe('Frontend State Correctness & Resilience', () => {
       mockCreate.mockRestore();
     });
   });
+
+  describe('Part B: Runtime API Schema Validation', () => {
+    test('rejects malformed server response at HTTP client boundary with 502 ApiError', async () => {
+      const { apiClient } = await import('../services/api');
+      const { isStudentDetail } = await import('../utils/validators');
+
+      // Mock global fetch returning malformed JSON missing required fields
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          student: {
+            id: 's1',
+            // missing name, email, version, currentReadiness
+          },
+        }),
+      });
+      vi.stubGlobal('fetch', mockFetch);
+
+      try {
+        await expect(
+          apiClient('/students/s1', { validator: isStudentDetail })
+        ).rejects.toThrowError(/did not conform to the expected client contract schema/i);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+  });
 });

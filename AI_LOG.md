@@ -174,37 +174,40 @@ In compliance with the assessment's AI use disclosure policy, this document accu
   - **A5 Concurrent Race Condition Serialization**:
     - `attemptService.js`: Enforced `SELECT id, tenant_id, name, version FROM students WHERE id = $1 AND tenant_id = $2 FOR UPDATE;` to serialize concurrent requests with different idempotency keys for the same student.
     - Preserved atomicity, version increments ($V \to V+2$), and consistent deterministic readiness recalculation across serial transactions.
+    - Verified with dedicated A5 concurrency test (`A5 - concurrent different-key submissions for the same student are serialized safely`), asserting mathematical readiness score equality (85.25) against PostgreSQL and the REST API.
   - **A6 MongoDB Operational Latency & Anomaly Aggregation**:
-    - `attemptService.js` & `eventPublisher.js`: Accurately measured real `latencyMs` using high-resolution timers and recorded it in MongoDB `metadata.latencyMs`.
-    - `validation.js` & `attemptController.js`: Implemented `recordRejectedEvent` with `reason: 'VALIDATION_ERROR'` and `metadata.validationFailure: true` on invalid attempts or missing keys.
-    - `activityController.js`: Replaced synthetic metrics with an aggregation pipeline computing true p95 latency from observed events (returning `null` if no observations), calculating accurate validation failure rates, and detecting duplicate success events for the same `idempotencyKey` / `attemptId`.
-  - **A7 Security Hardening**:
+    - `attemptService.js` & `eventPublisher.js`: Accurately measured real `latencyMs` using `performance.now()` high-resolution timers and recorded it in MongoDB `metadata.latencyMs`. Root document includes both `attemptId` and `assessmentId`.
+    - `validation.js` & `eventPublisher.js`: Updated `recordRejectedEvent` to write rejected events to the PostgreSQL `outbox_events` table as `PENDING` first, guaranteeing that validation rejections survive temporary MongoDB outages and flush asynchronously.
+    - `activityController.js`: Replaced in-memory sorting with MongoDB 8 native `$percentile` accumulator (`input: "$metadata.latencyMs", p: [0.95]`) inside `$group`, returning `null` if no observations exist, computing true validation failure rates, and detecting duplicate success events for the same `idempotencyKey` / `attemptId`.
+    - Added Admin-only endpoint `GET /api/analytics/activity-summary/all-tenants` grouping activity by tenant with strict `ADMIN` role enforcement.
+  - **A7 Security Hardening & Input Bounds**:
     - `authController.js`: Added production gate disabling demo login in production (`NODE_ENV === 'production'` returns 404). Restricted `/api/auth/switch-tenant` in production to verified authorized tenant memberships (returning 403 Forbidden for unauthorized tenants).
     - `auth.js` & `server.js`: Removed hardcoded fallback secret; required explicit `JWT_SECRET` with startup failure if unset.
+    - `validation.js` & `attemptController.js`: Added strict input bounds for query parameters (`page` $\ge 1$, `limit` 1–50, `search` $\le 100$ chars, allowlisted `sort` and `order`) and bounded `Idempotency-Key` header length to $\le 255$ characters.
   - **Phase 5 Data-Driven Competencies**:
     - Created `backend/src/routes/competencies.js` (`GET /api/competencies`) exposing active competencies dynamically from PostgreSQL.
     - Updated `AssessmentsView.tsx` to dynamically fetch and display active competency weights, codes, and rules from the backend.
   - **Phase 7 Runtime Schema Validation Boundary**:
-    - Created `frontend/src/utils/validators.ts` with shape validators (`isStudentSummary`, `isStudentDetail`, `isAssessmentAttemptResponse`, `isAnalyticsSummary`, `isPaginatedList`).
+    - Created `frontend/src/utils/validators.ts` with shape validators (`isStudentSummary`, `isStudentDetail`, `isAssessmentAttemptResponse`, `isAnalyticsSummary`, `isPaginatedList`, `isCreateStudentResponse`, `isCompetencyDefinition`, `isActivityEvent`).
     - Wired runtime validation into `apiClient`, `studentApi.ts`, and `attemptApi.ts` to reject contract drift with typed `ApiError(502)`.
   - **Phase 8 Diagnostic Audit Inspector**:
     - Integrated `ActivityLog` into `StudentPage.tsx` via a dedicated, collapsible "Diagnostic Audit Trail & Operational Events" card to preserve clean evaluator UX while allowing on-demand inspection of MongoDB append-only events.
   - **A8 Comprehensive Compliance Test Suite**:
-    - Created `backend/tests/integration/compliance.test.js` covering all 10 compliance items.
+    - Created `backend/tests/integration/compliance.test.js` covering 17 compliance items.
 - **Verification Performed**:
-  - Backend test suite: 47/47 passed across 5 test suites.
-  - Frontend test suite: 8/8 passed.
-  - Frontend production build: Clean compile with 0 TypeScript/Vite errors.
+  - Backend test suite: 54/54 passed across 5 test suites.
+  - Frontend test suite: 9/9 passed.
+  - Frontend production build: Clean compile with 0 TypeScript/Vite errors in ~1.04s.
 
 ---
 
 ## Summary of Verification Evidence
-- Domain Unit Tests: 14/14 passed.
-- API Integration Tests: 18/18 passed.
-- Idempotency & Concurrency Tests: 3/3 passed.
-- MongoDB Failure Injection Tests: 2/2 passed.
-- Specification Compliance Tests (`compliance.test.js`): 10/10 passed.
-- Frontend Resilience Tests: 8/8 passed.
-- Total Tests: 55/55 passed across all backend and frontend test suites.
+- Domain Unit Tests (`readinessService.test.js`): 14/14 passed.
+- API Integration Tests (`api.test.js`): 18/18 passed.
+- Idempotency & Concurrency Tests (`idempotency.test.js`): 3/3 passed.
+- MongoDB Failure Injection Tests (`failureInjection.test.js`): 2/2 passed.
+- Specification Compliance Tests (`compliance.test.js`): 17/17 passed.
+- Frontend Resilience & Validation Tests (`frontendResilience.test.tsx`): 9/9 passed.
+- Total Tests: 63/63 passed across all backend and frontend test suites.
 
 

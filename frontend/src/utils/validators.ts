@@ -98,3 +98,42 @@ export function isPaginatedList<T>(data: any, itemValidator: (item: any) => item
     typeof data.pagination.totalItems === 'number'
   );
 }
+
+/**
+ * Validates CreateStudentResponse shape.
+ */
+export function isCreateStudentResponse(data: any): boolean {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    isStudentSummary(data.student) &&
+    typeof data.message === 'string'
+  );
+}
+
+/**
+ * Validates CompetencyDefinition shape.
+ */
+export function isCompetencyDefinition(data: any): boolean {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    typeof data.key === 'string' &&
+    typeof data.name === 'string' &&
+    typeof data.weight === 'number'
+  );
+}
+
+/**
+ * Validates OperationalActivityEvent shape.
+ */
+export function isActivityEvent(data: any): boolean {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    typeof data.eventId === 'string' &&
+    typeof data.tenantId === 'string' &&
+    typeof data.eventType === 'string' &&
+    typeof data.occurredAt === 'string'
+  );
+}

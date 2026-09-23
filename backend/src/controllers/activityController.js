@@ -141,13 +141,19 @@ const getActivityAnalytics = async (req, res, next) => {
             },
             { $count: 'count' },
           ],
-          // 4. Latency analysis
+          // 4. Latency analysis using MongoDB $percentile aggregation operator
           latencyStats: [
-            { $match: { 'metadata.latencyMs': { $exists: true, $type: 'number' } } },
+            { $match: { eventType: 'attempt.succeeded', 'metadata.latencyMs': { $exists: true, $type: 'number' } } },
             {
               $group: {
                 _id: null,
-                latencies: { $push: '$metadata.latencyMs' },
+                p95: {
+                  $percentile: {
+                    input: '$metadata.latencyMs',
+                    p: [0.95],
+                    method: 'approximate',
+                  },
+                },
               },
             },
           ],
@@ -174,13 +180,13 @@ const getActivityAnalytics = async (req, res, next) => {
       ? Math.round((validationFailureCount / totalSubmissions) * 10000) / 100
       : 0;
 
-    // Calculate p95 latency if available
+    // Extract p95 latency computed by MongoDB aggregation ($percentile accumulator)
     let p95LatencyMs = null;
-    const latencies = (summary.latencyStats[0]?.latencies || []).filter(l => typeof l === 'number' && !isNaN(l));
-    if (latencies.length > 0) {
-      latencies.sort((a, b) => a - b);
-      const p95Index = Math.min(latencies.length - 1, Math.floor(latencies.length * 0.95));
-      p95LatencyMs = latencies[p95Index];
+    const p95Raw = summary.latencyStats[0]?.p95;
+    if (Array.isArray(p95Raw) && p95Raw.length > 0 && typeof p95Raw[0] === 'number') {
+      p95LatencyMs = Math.round(p95Raw[0] * 100) / 100;
+    } else if (typeof p95Raw === 'number') {
+      p95LatencyMs = Math.round(p95Raw * 100) / 100;
     }
 
     return res.status(200).json({
@@ -200,7 +206,132 @@ const getActivityAnalytics = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/analytics/activity-summary/all-tenants
+ * ADMIN-only endpoint grouping operational metrics by tenant across MongoDB.
+ */
+const getAllTenantsAnalytics = async (req, res, next) => {
+  try {
+    if (req.user?.role !== 'ADMIN') {
+      return res.status(403).json({
+        code: 'FORBIDDEN',
+        message: 'Admin access required to view cross-tenant analytics.',
+        requestId: req.requestId,
+        fieldErrors: {},
+      });
+    }
+
+    const mongoDb = await connectMongo();
+    if (!mongoDb) {
+      return res.status(503).json({
+        code: 'SERVICE_UNAVAILABLE',
+        message: 'MongoDB activity service is currently unavailable.',
+        requestId: req.requestId,
+        fieldErrors: {},
+      });
+    }
+
+    const collection = getActivityCollection();
+    const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const pipeline = [
+      {
+        $match: {
+          occurredAt: { $gte: last24h },
+        },
+      },
+      {
+        $group: {
+          _id: '$tenantId',
+          totalEvents: { $sum: 1 },
+          successfulAttempts: {
+            $addToSet: {
+              $cond: [{ $eq: ['$eventType', 'attempt.succeeded'] }, '$attemptId', '$$REMOVE'],
+            },
+          },
+          rejectedCount: {
+            $sum: { $cond: [{ $eq: ['$eventType', 'attempt.rejected'] }, 1, 0] },
+          },
+          validationFailureCount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$eventType', 'attempt.rejected'] },
+                    { $eq: ['$metadata.validationFailure', true] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+          p95Arr: {
+            $percentile: {
+              input: '$metadata.latencyMs',
+              p: [0.95],
+              method: 'approximate',
+            },
+          },
+          events: {
+            $push: {
+              attemptId: '$attemptId',
+              idempotencyKey: '$idempotencyKey',
+              eventType: '$eventType',
+            },
+          },
+        },
+      },
+      {
+        $sort: { _id: 1 },
+      },
+    ];
+
+    const results = await collection.aggregate(pipeline).toArray();
+
+    const report = results.map(row => {
+      const successfulAttemptsCount = (row.successfulAttempts || []).filter(Boolean).length;
+      const totalSubmissions = successfulAttemptsCount + (row.rejectedCount || 0);
+      const validationFailureRate = totalSubmissions > 0
+        ? Math.round(((row.validationFailureCount || 0) / totalSubmissions) * 10000) / 100
+        : 0;
+
+      let p95LatencyMs = null;
+      if (Array.isArray(row.p95Arr) && row.p95Arr.length > 0 && typeof row.p95Arr[0] === 'number') {
+        p95LatencyMs = Math.round(row.p95Arr[0] * 100) / 100;
+      }
+
+      // Check for duplicate success anomalies
+      const successEvents = (row.events || []).filter(e => e.eventType === 'attempt.succeeded' && e.attemptId);
+      const countsByAttempt = {};
+      successEvents.forEach(e => {
+        countsByAttempt[e.attemptId] = (countsByAttempt[e.attemptId] || 0) + 1;
+      });
+      const duplicateSuccessEvents = Object.keys(countsByAttempt)
+        .filter(attId => countsByAttempt[attId] > 1)
+        .map(attId => ({ attemptId: attId, eventCount: countsByAttempt[attId] }));
+
+      return {
+        tenantId: row._id,
+        uniqueSuccessfulAssessments: successfulAttemptsCount,
+        validationFailureRatePercent: validationFailureRate,
+        p95SubmissionLatencyMs: p95LatencyMs,
+        duplicateSuccessEvents,
+      };
+    });
+
+    return res.status(200).json({
+      tenants: report,
+      timeWindow: 'last_24_hours',
+      requestId: req.requestId,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getStudentActivity,
   getActivityAnalytics,
+  getAllTenantsAnalytics,
 };

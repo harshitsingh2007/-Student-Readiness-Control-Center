@@ -21,8 +21,7 @@ const createAttempt = async (req, res, next) => {
 
   if (!idempotencyKey || typeof idempotencyKey !== 'string' || idempotencyKey.trim().length === 0) {
     const errorMsg = 'Header Idempotency-Key is required for assessment submissions.';
-    // Log rejection event to MongoDB for observability
-    recordRejectedEvent({
+    await recordRejectedEvent({
       tenantId: req.tenantId,
       studentId: req.params.id,
       requestId: req.requestId,
@@ -37,6 +36,26 @@ const createAttempt = async (req, res, next) => {
       message: errorMsg,
       requestId: req.requestId,
       fieldErrors: { 'headers.idempotency-key': 'Required header missing.' },
+    });
+  }
+
+  if (idempotencyKey.trim().length > 255) {
+    await recordRejectedEvent({
+      tenantId: req.tenantId,
+      studentId: req.params.id,
+      requestId: req.requestId,
+      reason: 'INVALID_IDEMPOTENCY_KEY',
+      metadata: {
+        validationFailure: true,
+        idempotencyKey: idempotencyKey.substring(0, 255),
+      },
+    });
+
+    return res.status(400).json({
+      code: 'VALIDATION_ERROR',
+      message: 'Idempotency-Key header cannot exceed 255 characters.',
+      requestId: req.requestId,
+      fieldErrors: { 'headers.idempotency-key': 'Exceeds maximum 255 characters.' },
     });
   }
 

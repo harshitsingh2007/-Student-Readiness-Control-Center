@@ -1,7 +1,7 @@
 # Student Readiness Control Center
 
-[![Backend Tests](https://img.shields.io/badge/backend_tests-47%2F47_passed-brightgreen.svg)]()
-[![Frontend Tests](https://img.shields.io/badge/frontend_tests-8%2F8_passed-brightgreen.svg)]()
+[![Backend Tests](https://img.shields.io/badge/backend_tests-54%2F54_passed-brightgreen.svg)]()
+[![Frontend Tests](https://img.shields.io/badge/frontend_tests-9%2F9_passed-brightgreen.svg)]()
 [![Node](https://img.shields.io/badge/node->=18.0.0-blue.svg)]()
 [![React](https://img.shields.io/badge/react-18.3.1-blue.svg)]()
 [![TypeScript](https://img.shields.io/badge/typescript-5.4.5-blue.svg)]()
@@ -86,6 +86,57 @@ The system initially defines four required competencies (data-driven in PostgreS
        • idempotency_records (SHA-256)
        • outbox_events (transactional queue)
 ```
+
+---
+
+## 2.1 A5 Concurrency & Race-Condition Architecture: Strategy Comparison
+
+In a multi-evaluator assessment environment, concurrent submissions for the same student present high race condition risk. We evaluated two architectural strategies:
+
+### Strategy Comparison Matrix
+
+| Evaluation Dimension | Strategy 1: Pessimistic Row Lock (`SELECT FOR UPDATE`) *(Chosen for Submissions)* | Strategy 2: Optimistic Concurrency Control (`expectedVersion`) *(Used for Metadata Edits)* |
+| :--- | :--- | :--- |
+| **Locking Behavior** | Acquires exclusive row-level lock in PostgreSQL (`FOR UPDATE`) on the student record for the transaction duration. | Zero locks held during read or evaluation; checks `WHERE version = expectedVersion` on write. |
+| **Contention Handling** | Queues concurrent transactions sequentially. First commits; second unblocks, re-reads updated state, and commits cleanly. | Fails immediately on version collision, returning `409 Conflict`. Requires client or caller to reload and retry. |
+| **Retry Behavior** | Automatic, zero-friction serialization in PostgreSQL engine. No client-side retry loop needed. | Caller must handle 409, reload fresh entity, recompute/re-prompt user, and retry HTTP submission. |
+| **Failure Modes** | Deadlock risk if locking multiple rows in inconsistent order. (Mitigated by strictly locking only the single student row). | High rejection rate under high write contention; evaluators' in-progress submissions get rejected. |
+| **Implementation Complexity** | Moderate; requires dedicated PostgreSQL transaction client (`BEGIN ... COMMIT / ROLLBACK`). | Low; single SQL update statement checking version counter. |
+
+### Rationale: Why Pessimistic `SELECT FOR UPDATE` is Used for Assessment Submissions
+
+Assessment attempt submission is an **authoritative evaluation pipeline**:
+1. An evaluator submits a score. Rejecting the evaluator's score with a `409 Conflict` because another evaluator submitted a different competency 10ms earlier creates terrible UX, lost evaluator time, and confused grade books.
+2. In contrast, row-level locking via `SELECT ... FOR UPDATE` serializes concurrent submissions seamlessly. Request A commits Attempt 1 and increments version to $V+1$; Request B unblocks, re-reads the updated student version and all valid attempts, recalculates readiness including both attempts, and increments version to $V+2$. **Both attempts are committed, zero updates are lost, and readiness is 100% mathematically consistent.**
+
+### Assessment Submission Transaction Pseudocode
+```text
+BEGIN TRANSACTION
+  1. Validate JWT and derive authoritative tenantId
+  2. Validate payload bounds (score 0-100, competency in allowlist, Idempotency-Key <= 255 chars)
+  3. Hash request body to SHA-256 fingerprint
+  4. INSERT INTO idempotency_records (tenant_id, key, fingerprint, status)
+     ON CONFLICT (tenant_id, key) DO UPDATE ...
+     -> If COMPLETED with identical fingerprint: RETURN stored response (REPLAY)
+     -> If COMPLETED with different fingerprint: ROLLBACK & RETURN 422
+  5. SELECT id, tenant_id, name, version FROM students 
+     WHERE id = :studentId AND tenant_id = :tenantId FOR UPDATE;
+  6. INSERT INTO attempts (tenant_id, student_id, competency_id, score, ...)
+  7. Compute authoritative readiness over latest non-void attempts with timestamp/ID tie-breaking
+  8. UPDATE students SET current_score = :score, current_readiness = :status, version = version + 1
+     WHERE id = :studentId;
+  9. INSERT INTO outbox_events (tenant_id, event_id, event_type, payload, status)
+     VALUES (:tenantId, :eventId, 'attempt.succeeded', :payload, 'PENDING');
+  10. UPDATE idempotency_records SET status = 'COMPLETED', response_body = :response;
+COMMIT
+11. Asynchronously flush outbox events to MongoDB
+```
+
+### Role of Idempotency in Preventing Duplicate Processing
+If an evaluator double-clicks or a network glitch causes an automated retry with the **same** `Idempotency-Key`:
+- Step 4 detects the existing key in PostgreSQL.
+- Because `(tenant_id, key)` is unique, the second identical request receives the original stored response with header `X-Idempotency-Replay: true`.
+- Zero duplicate attempt rows are inserted, and zero duplicate readiness calculations occur.
 
 ---
 
@@ -232,25 +283,25 @@ Open **`http://localhost:5175`** in your browser.
 
 ## 9. Automated Test Suite
  
-### Run All Backend Tests (47 Tests Across 5 Suites)
+### Run All Backend Tests (54 Tests Across 5 Suites)
 ```bash
 cd backend
 npm test
 ```
 Tests executed:
-- `tests/integration/compliance.test.js`: Full specification compliance verifying A5 concurrent different-key row lock serialization, A6 operational latency tracking in MongoDB, A6 validation failure event logging (`attempt.rejected`), A6 true p95 latency calculation, A6 duplicate-success anomaly detection, A6 tenant analytics isolation, A7 production demo-login 404 gate, A7 production unauthorized tenant switching 403 gate, A7 fail-fast missing `JWT_SECRET` exception, and Phase 5 dynamic competencies endpoint `GET /api/competencies` (10 tests).
+- `tests/integration/compliance.test.js`: Full specification compliance verifying A5 concurrent different-key row lock serialization with exact mathematical readiness verification, A6 operational latency tracking in MongoDB via `performance.now()`, A6 event schema with both `attemptId` and `assessmentId`, A6 validation failure event logging (`attempt.rejected`) backed by transactional outbox, A6 true p95 latency calculation via MongoDB native `$percentile`, A6 duplicate-success anomaly detection, A6 tenant analytics isolation, A6 Admin-only cross-tenant endpoint `GET /api/analytics/activity-summary/all-tenants` with 403 evaluator gate, A7 production demo-login 404 gate, A7 production unauthorized tenant switching 403 gate, A7 fail-fast missing `JWT_SECRET` exception, A7 query parameter input bounds (page, limit, search, sort, order), A7 Idempotency-Key length bound (255 chars), and Phase 5 dynamic competencies endpoint `GET /api/competencies` (17 tests).
 - `tests/domain/readinessService.test.js`: Domain boundary thresholds, tie-breaking, missing required vs. optional competencies, mathematical invariants (14 tests).
 - `tests/integration/api.test.js`: Authentication, authorization, tenant isolation, non-disclosing 404, optimistic concurrency, and dynamic student creation (18 tests).
 - `tests/idempotency/idempotency.test.js`: 3 parallel identical requests producing 1 attempt, stored replay, fingerprint mismatch rejection (3 tests).
 - `tests/integration/failureInjection.test.js`: Simulated MongoDB outage, outbox persistence, and recovery flushing without duplicate events (2 tests).
 
-### Run Frontend Resilience & Component Tests (8 Tests)
+### Run Frontend Resilience & Component Tests (9 Tests)
 ```bash
 cd frontend
 npm test
 ```
 Tests executed:
-- `frontendResilience.test.tsx`: Out-of-order response discard, `AbortController` cancellation on fast tenant switch, 409 Conflict UI rendering, background refresh data preservation, and `AddStudentModal` validation/submission (8 tests).
+- `frontendResilience.test.tsx`: Out-of-order response discard, `AbortController` cancellation on fast tenant switch, 409 Conflict UI rendering, background refresh data preservation, `AddStudentModal` validation/submission, and runtime invalid API response rejection at client boundary (9 tests).
 
 ---
 
@@ -335,5 +386,5 @@ Advanced Engineering     Production Build        Incident Investigation
 - [x] Transactional outbox resilience during simulated MongoDB outage verified
 - [x] React URL-persisted search, filters, pagination, and debounce verified
 - [x] Seeded defect (cross-tenant leakage on fast account switch) resolved across all trust boundaries
-- [x] All 36 backend tests and 8 frontend tests pass with zero failures
+- [x] All 54 backend tests and 9 frontend tests pass with zero failures
 - [x] `INCIDENT.md`, `DECISIONS.md`, `AI_LOG.md`, `PULL_REQUEST.md`, `docs/API.md`, `docs/ARCHITECTURE.md`, and `docs/DEFENSE_GUIDE.md` complete

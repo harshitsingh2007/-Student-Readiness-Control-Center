@@ -24,25 +24,82 @@ const allowlistFields = (obj, allowedKeys = []) => {
 };
 
 /**
- * Validate and sanitize pagination and sorting parameters.
+ * Validate and sanitize pagination, search, filter, and sorting parameters.
+ * Rejects out-of-bounds parameters with structured 400 validation errors.
  */
 const validatePagination = (req, res, next) => {
-  const page = parseInt(req.query.page || '1', 10);
-  const limit = parseInt(req.query.limit || '10', 10);
+  const fieldErrors = {};
+
+  let page = 1;
+  if (req.query.page !== undefined) {
+    const parsedPage = Number(req.query.page);
+    if (!Number.isInteger(parsedPage) || parsedPage < 1 || parsedPage > 1000000) {
+      fieldErrors.page = 'Page must be an integer between 1 and 1,000,000.';
+    } else {
+      page = parsedPage;
+    }
+  }
+
+  let limit = 10;
+  if (req.query.limit !== undefined) {
+    const parsedLimit = Number(req.query.limit);
+    if (!Number.isInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > 50) {
+      fieldErrors.limit = 'Limit must be an integer between 1 and 50.';
+    } else {
+      limit = parsedLimit;
+    }
+  }
+
+  if (req.query.search !== undefined) {
+    if (typeof req.query.search !== 'string' || req.query.search.length > 100) {
+      fieldErrors.search = 'Search query cannot exceed 100 characters.';
+    }
+  }
+
+  const allowedSorts = ['name', 'current_score', 'created_at', 'updated_at', 'current_readiness'];
+  let sort = 'name';
+  if (req.query.sort !== undefined) {
+    if (!allowedSorts.includes(req.query.sort)) {
+      fieldErrors.sort = `Sort field must be one of: ${allowedSorts.join(', ')}.`;
+    } else {
+      sort = req.query.sort;
+    }
+  }
+
+  let order = 'ASC';
+  if (req.query.order !== undefined) {
+    const upperOrder = String(req.query.order).toUpperCase();
+    if (upperOrder !== 'ASC' && upperOrder !== 'DESC') {
+      fieldErrors.order = 'Order must be ASC or DESC.';
+    } else {
+      order = upperOrder;
+    }
+  }
+
+  const allowedStatuses = ['ALL', 'READY', 'NEARLY_READY', 'DEVELOPING', 'NEEDS_PREPARATION', 'INCOMPLETE'];
+  if (req.query.status !== undefined) {
+    const upperStatus = String(req.query.status).toUpperCase();
+    if (!allowedStatuses.includes(upperStatus)) {
+      fieldErrors.status = `Status must be one of: ${allowedStatuses.join(', ')}.`;
+    }
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return res.status(400).json({
+      code: 'VALIDATION_ERROR',
+      message: 'Query parameters failed validation bounds.',
+      requestId: req.requestId,
+      fieldErrors,
+    });
+  }
 
   req.pagination = {
-    page: isNaN(page) || page < 1 ? 1 : page,
-    limit: isNaN(limit) || limit < 1 ? 10 : Math.min(limit, 50), // Bounded to max 50
+    page,
+    limit,
+    offset: (page - 1) * limit,
   };
-  req.pagination.offset = (req.pagination.page - 1) * req.pagination.limit;
-
-  // Validate sort field to prevent SQL injection in ORDER BY
-  const allowedSorts = ['name', 'current_score', 'created_at', 'updated_at', 'current_readiness'];
-  const sort = req.query.sort || 'name';
-  req.sortField = allowedSorts.includes(sort) ? sort : 'name';
-
-  const order = (req.query.order || 'ASC').toUpperCase();
-  req.sortOrder = order === 'DESC' ? 'DESC' : 'ASC';
+  req.sortField = sort;
+  req.sortOrder = order;
 
   next();
 };
@@ -54,8 +111,15 @@ const validateAttemptPayload = async (req, res, next) => {
   const { competencyKey, score, notes } = req.body || {};
   const fieldErrors = {};
 
+  const idempHeader = req.headers ? req.headers['idempotency-key'] : null;
+  if (idempHeader && typeof idempHeader === 'string' && idempHeader.length > 255) {
+    fieldErrors['headers.idempotency-key'] = 'Idempotency-Key header cannot exceed 255 characters.';
+  }
+
   if (!competencyKey || typeof competencyKey !== 'string') {
     fieldErrors.competencyKey = 'A valid competency key is required.';
+  } else if (competencyKey.trim().length > 64) {
+    fieldErrors.competencyKey = 'Competency key cannot exceed 64 characters.';
   }
 
   const numericScore = Number(score);

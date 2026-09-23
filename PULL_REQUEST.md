@@ -28,10 +28,10 @@ The platform provides multi-tenant competency assessment, server-side authoritat
 
 ---
 
-## Automated Tests Performed (55/55 Passing Tests)
+## Automated Tests Performed (63/63 Passing Tests)
 
 ### 1. Specification Compliance Suite (`backend/tests/integration/compliance.test.js`)
-- 10/10 Passed: A5 concurrent different-key row lock serialization, A6 operational latency tracking in MongoDB events, A6 validation failure event logging (`attempt.rejected`), A6 true p95 latency calculation, A6 duplicate-success anomaly detection, A6 tenant analytics isolation, A7 production demo-login 404 gate, A7 production unauthorized tenant switching 403 gate, A7 fail-fast missing `JWT_SECRET` exception, and Phase 5 dynamic competencies endpoint `GET /api/competencies`.
+- 17/17 Passed: A5 concurrent different-key row lock serialization with exact mathematical readiness score verification, A6 operational latency tracking in MongoDB via `performance.now()`, A6 event schema with both `attemptId` and `assessmentId`, A6 outbox persistence for validation rejections, A6 true p95 latency calculation via MongoDB native `$percentile`, A6 duplicate-success anomaly detection, A6 tenant analytics isolation, A6 Admin-only cross-tenant endpoint `GET /api/analytics/activity-summary/all-tenants` with 403 evaluator gate, A7 production demo-login 404 gate, A7 production unauthorized tenant switching 403 gate, A7 fail-fast missing `JWT_SECRET` exception, A7 query parameter input bounds (page, limit, search, sort, order), A7 Idempotency-Key length bound (255 chars), and Phase 5 dynamic competencies endpoint `GET /api/competencies`.
 
 ### 2. Domain Logic Tests (`backend/tests/domain/`)
 - 14/14 Passed: Boundaries for `READY` (80.00), `NEARLY_READY` (65.00), `DEVELOPING` (50.00), `NEEDS_PREPARATION` (<50), and `INCOMPLETE` (missing required competency attempt).
@@ -49,14 +49,14 @@ The platform provides multi-tenant competency assessment, server-side authoritat
 - 2/2 Passed: Simulated MongoDB outage confirms relational commit succeeds, event remains pending in outbox, and flushes with zero duplication on recovery.
 
 ### 6. Frontend Resilience & Component Tests (`frontend/src/tests/`)
-- 8/8 Passed: Out-of-order response protection, `AbortController` cancellation on fast tenant switch, 409 conflict banner display, background refresh failure data preservation, and `AddStudentModal` form validation/creation.
+- 9/9 Passed: Out-of-order response protection, `AbortController` cancellation on fast tenant switch, 409 conflict banner display, background refresh failure data preservation, `AddStudentModal` form validation/creation, and runtime invalid API response rejection at client boundary.
 
 ---
 
 ## Migration & Database Impact
 - `001_initial_schema.sql` creates tables: `tenants`, `users`, `competencies`, `students`, `attempts`, `idempotency_records`, `outbox_events`.
 - Indexes created: `(tenant_id, id)`, `(tenant_id, current_readiness)`, `(tenant_id, name)`, `(student_id, competency_id, submitted_at DESC, id DESC)`, `(expires_at)`.
-- Reversible: Migrations are tracked in `schema_migrations` table.
+- Reversible: Schema initialization is tracked in the `schema_migrations` table.
 
 ---
 
@@ -65,10 +65,11 @@ The platform provides multi-tenant competency assessment, server-side authoritat
 - Structured logging records method, endpoint, status, latency, and safe tenant identifier.
 - Sensitive information (passwords, connection strings, JWT secrets) is strictly excluded from logs.
 - MongoDB aggregation pipeline endpoint `GET /api/analytics/activity-summary` detects duplicate success events, validation failure rates, and p95 latencies.
+- Admin-only endpoint `GET /api/analytics/activity-summary/all-tenants` groups activity by tenant with `$percentile` and role protection.
 
 ---
 
 ## Rollback Plan
-1. Revert deployment image to previous version.
-2. In case of schema rollback: drop created tables via migration down script.
-3. Invalidate application cache using tenant-scoped keys.
+1. Revert deployment image or Git commit to previous release.
+2. In case of database rollback: restore from pre-deployment PostgreSQL snapshot or execute manual DROP TABLE cascade statements (note: an automated down migration script is deliberately omitted in this forward-migrating release).
+3. Invalidate application sessions and client cache.

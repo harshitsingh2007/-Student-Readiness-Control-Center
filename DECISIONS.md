@@ -150,6 +150,25 @@ Introduce typed schema validation predicates (`isStudentSummary`, `isStudentDeta
 
 ---
 
+## Architectural Decision 8: Outbox Persistence for Validation Rejections & Admin-Only Multi-Tenant Analytics (A6 & Phase 7)
+
+### Context
+1. When invalid assessment requests fail (e.g., missing idempotency key, invalid score, missing student), writing rejections directly to MongoDB creates data loss risk if MongoDB is temporarily partitioned or offline.
+2. Analytics for a single tenant must strictly prevent cross-tenant disclosure, but platform operators require an aggregate view across all tenants.
+
+### Decision
+1. **Outbox-Backed Rejections**: `recordRejectedEvent` writes validation rejection events to the PostgreSQL `outbox_events` table as `PENDING` within an isolated transaction before attempting MongoDB ingestion. If MongoDB is down, the rejected audit record remains durable in PostgreSQL and automatically flushes when connectivity recovers.
+2. **Admin-Only Cross-Tenant Analytics**: Implemented `GET /api/analytics/activity-summary/all-tenants` protected with `requireRole(['ADMIN'])`. The endpoint uses MongoDB `$group: { _id: "$tenantId" }` with the native `$percentile` accumulator, returning an array of per-tenant metrics. Evaluators and ordinary users receive `403 Forbidden` if they attempt access.
+
+### Trade-offs & Analysis
+- **Positives**:
+  - Zero audit event loss for rejections even under total MongoDB outage.
+  - Strict tenant isolation preserved for standard tenant routes, with controlled administrative multi-tenant visibility.
+- **Negatives**:
+  - Slightly higher PostgreSQL write load during rejected request spikes, mitigated by lightweight outbox table indexing.
+
+---
+
 ## Consciously Deferred Improvement: Change Data Capture (Debezium/Kafka) Outbox Streaming
 
 ### Deferred Feature

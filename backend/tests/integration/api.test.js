@@ -41,17 +41,9 @@ describe('API Integration Tests', () => {
   });
 
   afterAll(async () => {
-    const seededIds = [
-      'student-alpha-1',
-      'student-alpha-2',
-      'student-alpha-3',
-      'student-alpha-4',
-      'student-alpha-5',
-      'student-alpha-6',
-      'student-beta-1',
-      'student-beta-2'
-    ];
-    await pool.query('DELETE FROM students WHERE id != ALL($1);', [seededIds]);
+    // Only clean up the automated test records created by this test suite, preserving all user/UI created students
+    await pool.query("DELETE FROM attempts WHERE student_id IN (SELECT id FROM students WHERE email LIKE 'dynamic.student.%');");
+    await pool.query("DELETE FROM students WHERE email LIKE 'dynamic.student.%';");
     await pool.end();
     await closeMongo();
   });

@@ -10,6 +10,17 @@
  */
 
 import React from 'react';
+import {
+  GraduationCapIcon,
+  DashboardIcon,
+  StudentsIcon,
+  AnalyticsIcon,
+  AssessmentsIcon,
+  ReportsIcon,
+  OrganizationIcon,
+  SettingsIcon,
+  SeedlingIcon,
+} from './Icons';
 
 export type NavTab = 
   | 'dashboard'
@@ -30,21 +41,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   onSelectTab,
 }) => {
-  const navItems: Array<{ id: NavTab; label: string; icon: string }> = [
-    { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
-    { id: 'students', label: 'Students', icon: '👥' },
-    { id: 'analytics', label: 'Analytics', icon: '📈' },
-    { id: 'assessments', label: 'Assessments', icon: '📝' },
-    { id: 'reports', label: 'Reports', icon: '📑' },
-    { id: 'organization', label: 'Organization', icon: '🏢' },
-    { id: 'settings', label: 'Settings', icon: '⚙️' },
+  const navItems: Array<{ id: NavTab; label: string; icon: React.ReactNode }> = [
+    { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon size={18} /> },
+    { id: 'students', label: 'Students', icon: <StudentsIcon size={18} /> },
+    { id: 'analytics', label: 'Analytics', icon: <AnalyticsIcon size={18} /> },
+    { id: 'assessments', label: 'Assessments', icon: <AssessmentsIcon size={18} /> },
+    { id: 'reports', label: 'Reports', icon: <ReportsIcon size={18} /> },
+    { id: 'organization', label: 'Organization', icon: <OrganizationIcon size={18} /> },
+    { id: 'settings', label: 'Settings', icon: <SettingsIcon size={18} /> },
   ];
 
   return (
     <aside className="app-sidebar" aria-label="Main Navigation">
       {/* Brand Header */}
       <div className="sidebar-brand" onClick={() => onSelectTab('dashboard')} role="button" tabIndex={0}>
-        <div className="sidebar-brand-icon">🎓</div>
+        <div className="sidebar-brand-icon">
+          <GraduationCapIcon size={22} />
+        </div>
         <div className="sidebar-brand-text">
           <span className="brand-title-primary">Student Readiness</span>
           <span className="brand-title-secondary">Control Center</span>
@@ -78,7 +91,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Bottom Motivational Support Card */}
       <div className="sidebar-footer">
         <div className="support-card">
-          <div className="support-card-icon">🌱</div>
+          <div className="support-card-icon">
+            <SeedlingIcon size={20} />
+          </div>
           <div className="support-card-text">
             <strong>Empowering Students</strong>
             <p>For a brighter, competency-ready tomorrow.</p>

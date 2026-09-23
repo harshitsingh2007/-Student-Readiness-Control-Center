@@ -9,6 +9,7 @@
 import React from 'react';
 import { UserProfile } from '../types/api';
 import { TenantSelector } from './TenantSelector';
+import { ChartBarIcon, BellIcon } from './Icons';
 
 interface NavbarProps {
   user: UserProfile | null;
@@ -50,7 +51,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             aria-label="View Operational Analytics"
             title="MongoDB Operational Analytics"
           >
-            📊
+            <ChartBarIcon size={18} />
           </button>
         )}
 
@@ -60,7 +61,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           aria-label="Notifications"
           title="System Notifications"
         >
-          🔔
+          <BellIcon size={18} />
           <span className="notification-dot" />
         </button>
 

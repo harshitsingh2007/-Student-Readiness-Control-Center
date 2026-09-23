@@ -10,6 +10,7 @@
 
 import React from 'react';
 import { CompetencyDefinition, CalculatedReadiness } from '../types/student';
+import { AlertTriangleIcon } from './Icons';
 
 interface CompetencyTableProps {
   competencies: CompetencyDefinition[];
@@ -106,8 +107,8 @@ export const CompetencyTable: React.FC<CompetencyTableProps> = ({
       </table>
 
       {readiness.missingCompetencies.length > 0 && (
-        <div className="missing-warning-banner" role="alert">
-          <span className="warning-icon">⚠️</span>
+        <div className="missing-warning-banner" role="alert" style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+          <AlertTriangleIcon size={18} style={{ color: 'var(--amber-700)', flexShrink: 0, marginTop: '2px' }} />
           <div>
             <strong>Incomplete Readiness:</strong> This student is missing attempts in{' '}
             {readiness.missingCompetencies.map(c => c.name).join(', ')}.

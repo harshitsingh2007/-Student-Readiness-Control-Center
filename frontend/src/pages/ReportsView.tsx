@@ -8,6 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { StudentSummary } from '../types/student';
 import { getStudents } from '../services/studentApi';
+import { PrinterIcon, CheckCircleIcon } from '../components/Icons';
 
 interface ReportsViewProps {
   students?: StudentSummary[];
@@ -63,8 +64,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ students: propStudents
             className="btn-primary"
             onClick={handlePrint}
             disabled={loading}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            🖨️ Export / Print Report
+            <PrinterIcon size={16} />
+            <span>Export / Print Report</span>
           </button>
         </div>
       </div>
@@ -138,7 +141,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ students: propStudents
 
         <div style={{ padding: '16px', background: 'var(--slate-50)', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ready-text)', fontWeight: 600 }}>
-            <span>✅</span>
+            <CheckCircleIcon size={16} style={{ color: 'var(--emerald-600)', flexShrink: 0 }} />
             <span>Zero Scoring Drift Detected across active records</span>
           </div>
           <p style={{ fontSize: '13px', color: 'var(--slate-600)', marginTop: '6px' }}>

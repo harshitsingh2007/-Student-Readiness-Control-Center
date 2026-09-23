@@ -7,6 +7,7 @@
 
 import React, { useState } from 'react';
 import { UserProfile } from '../types/api';
+import { CheckCircleIcon, LockClosedIcon } from '../components/Icons';
 
 interface SettingsViewProps {
   user: UserProfile;
@@ -43,8 +44,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onLogout }) =>
       </div>
 
       {saveMessage && (
-        <div className="success-banner" style={{ marginBottom: '20px' }}>
-          ✅ {saveMessage}
+        <div className="success-banner" style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <CheckCircleIcon size={16} style={{ color: 'var(--emerald-600)', flexShrink: 0 }} />
+          <span>{saveMessage}</span>
         </div>
       )}
 
@@ -155,8 +157,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ user, onLogout }) =>
             </div>
           </div>
 
-          <div className="version-lock-notice" style={{ marginTop: '16px' }}>
-            🔒 Roles and permissions are cryptographically verified via JWT tokens.
+          <div className="version-lock-notice" style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <LockClosedIcon size={14} />
+            <span>Roles and permissions are cryptographically verified via JWT tokens.</span>
           </div>
         </form>
       </div>

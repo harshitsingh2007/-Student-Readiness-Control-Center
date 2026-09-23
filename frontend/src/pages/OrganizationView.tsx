@@ -6,6 +6,7 @@
 
 import React from 'react';
 import { UserProfile } from '../types/api';
+import { RefreshIcon } from '../components/Icons';
 
 interface OrganizationViewProps {
   user: UserProfile;
@@ -60,8 +61,10 @@ export const OrganizationView: React.FC<OrganizationViewProps> = ({ user, onSwit
             type="button"
             className="btn-primary"
             onClick={() => onSwitchTenant(isAlpha ? 'tenant-beta' : 'tenant-alpha')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            🔄 Switch to {isAlpha ? 'Tenant Beta' : 'Tenant Alpha'}
+            <RefreshIcon size={14} />
+            <span>Switch to {isAlpha ? 'Tenant Beta' : 'Tenant Alpha'}</span>
           </button>
         </div>
       </div>

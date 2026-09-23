@@ -14,6 +14,7 @@ import { CompetencyDefinition } from '../types/student';
 import { submitAssessmentAttempt } from '../services/attemptApi';
 import { validateAttemptInput } from '../utils/validation';
 import { ApiError } from '../services/api';
+import { CheckCircleIcon, XCircleIcon } from './Icons';
 
 interface AttemptFormProps {
   studentId: string;
@@ -109,9 +110,13 @@ export const AttemptForm: React.FC<AttemptFormProps> = ({
       </div>
 
       {feedback && (
-        <div className={`form-feedback feedback-${feedback.type}`} role="alert">
-          {feedback.type === 'success' ? '✅ ' : '❌ '}
-          {feedback.message}
+        <div className={`form-feedback feedback-${feedback.type}`} role="alert" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {feedback.type === 'success' ? (
+            <CheckCircleIcon size={16} style={{ color: 'var(--emerald-600)', flexShrink: 0 }} />
+          ) : (
+            <XCircleIcon size={16} style={{ color: 'var(--rose-600)', flexShrink: 0 }} />
+          )}
+          <span>{feedback.message}</span>
         </div>
       )}
 

@@ -11,6 +11,7 @@ import { StudentSummary } from '../types/student';
 import { PaginationMeta } from '../types/api';
 import { StatusBadge } from './StatusBadge';
 import { LoadingState } from './LoadingState';
+import { AlertTriangleIcon, FolderIcon } from './Icons';
 
 interface StudentTableProps {
   students: StudentSummary[];
@@ -53,8 +54,9 @@ export const StudentTable: React.FC<StudentTableProps> = ({
       )}
 
       {errorMessage && (
-        <div className="error-banner" role="alert">
-          ⚠️ {errorMessage}
+        <div className="error-banner" role="alert" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <AlertTriangleIcon size={16} style={{ color: 'var(--amber-700)', flexShrink: 0 }} />
+          <span>{errorMessage}</span>
         </div>
       )}
 
@@ -69,7 +71,9 @@ export const StudentTable: React.FC<StudentTableProps> = ({
 
       {students.length === 0 ? (
         <div className="empty-state-card">
-          <span className="empty-icon">📂</span>
+          <span className="empty-icon">
+            <FolderIcon size={40} style={{ color: 'var(--slate-400)' }} />
+          </span>
           <h3>No students found</h3>
           <p>No students match your current search and filter criteria.</p>
         </div>

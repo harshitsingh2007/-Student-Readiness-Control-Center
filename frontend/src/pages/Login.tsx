@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { AuthResponse } from '../types/api';
 import { apiClient, ApiError } from '../services/api';
+import { GraduationCapIcon, AlertTriangleIcon } from '../components/Icons';
 
 interface LoginProps {
   onLoginSuccess: (authData: AuthResponse) => void;
@@ -70,14 +71,17 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     <div className="login-page">
       <div className="login-card">
         <div className="login-header">
-          <div className="login-icon">🎓</div>
+          <div className="login-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <GraduationCapIcon size={32} style={{ color: 'var(--brand-600)' }} />
+          </div>
           <h1>Student Readiness Control Center</h1>
           <p className="login-subtext">Enterprise Multi-Tenant Assessment & Verification Platform</p>
         </div>
 
         {errorMessage && (
-          <div className="login-error" role="alert">
-            ⚠️ {errorMessage}
+          <div className="login-error" role="alert" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangleIcon size={16} style={{ color: 'var(--amber-700)', flexShrink: 0 }} />
+            <span>{errorMessage}</span>
           </div>
         )}
 

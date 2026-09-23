@@ -16,6 +16,7 @@ import { CompetencyTable } from '../components/CompetencyTable';
 import { AttemptForm } from '../components/AttemptForm';
 import { LoadingState } from '../components/LoadingState';
 import { ApiError } from '../services/api';
+import { AlertTriangleIcon } from '../components/Icons';
 
 interface StudentPageProps {
   studentId: string;
@@ -111,7 +112,7 @@ export const StudentPage: React.FC<StudentPageProps> = ({
         // Display conflict state
         return (
           <div className="card conflict-card" role="alert">
-            <h3>409 Concurrency Conflict</h3>
+            <h3>409 Version Conflict</h3>
             <p>{asyncState.message}</p>
             <button type="button" className="btn-primary" onClick={() => fetchStudentData()}>
               Reload Student
@@ -149,8 +150,9 @@ export const StudentPage: React.FC<StudentPageProps> = ({
 
         {/* Failed Refresh Banner (preserves previous data) */}
         {refreshError && (
-          <div className="error-banner" role="alert">
-            ⚠️ Background refresh failed: {refreshError}. Displaying previously loaded data.
+          <div className="error-banner" role="alert" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangleIcon size={16} style={{ color: 'var(--amber-700)', flexShrink: 0 }} />
+            <span>Background refresh failed: {refreshError}. Displaying previously loaded data.</span>
           </div>
         )}
 

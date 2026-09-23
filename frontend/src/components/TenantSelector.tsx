@@ -12,6 +12,7 @@
  */
 
 import React from 'react';
+import { OrganizationIcon } from './Icons';
 
 interface TenantSelectorProps {
   currentTenantId: string;
@@ -27,7 +28,9 @@ export const TenantSelector: React.FC<TenantSelectorProps> = ({
   return (
     <div className="tenant-selector-group">
       <label htmlFor="tenant-select" className="tenant-label">
-        <span className="tenant-icon">🏢</span> Organization / Tenant:
+        <span className="tenant-icon" style={{ display: 'inline-flex', verticalAlign: 'middle', marginRight: '4px' }}>
+          <OrganizationIcon size={16} />
+        </span> Organization / Tenant:
       </label>
       <select
         id="tenant-select"

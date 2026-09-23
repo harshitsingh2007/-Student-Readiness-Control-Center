@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import { StudentsIcon } from '../components/Icons';
 
 interface AssessmentsViewProps {
   onNavigateToStudents: () => void;
@@ -41,8 +42,8 @@ export const AssessmentsView: React.FC<AssessmentsViewProps> = ({ onNavigateToSt
       name: 'Problem Solving & Architecture',
       weight: '15%',
       required: true,
-      description: 'Concurrency control, boundary isolation, deterministic tie-breaking, and resilient design.',
-      criteria: 'Evaluates edge case handling, optimistic locking conflict detection, and failover resilience.',
+      description: 'Version collision prevention, boundary isolation, deterministic tie-breaking, and resilient design.',
+      criteria: 'Evaluates edge case handling, collision conflict detection, and failover resilience.',
     },
   ];
 
@@ -60,8 +61,10 @@ export const AssessmentsView: React.FC<AssessmentsViewProps> = ({ onNavigateToSt
             type="button"
             className="btn-primary"
             onClick={onNavigateToStudents}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            👥 Record Assessment in Student Roster
+            <StudentsIcon size={16} />
+            <span>Record Assessment in Student Roster</span>
           </button>
         </div>
       </div>

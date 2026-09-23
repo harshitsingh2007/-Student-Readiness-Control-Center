@@ -217,7 +217,7 @@ describe('Frontend State Correctness & Resilience', () => {
       });
 
       // Verification: 409 Conflict Banner is displayed with explanation and reload button
-      expect(await screen.findByText(/409 Optimistic Concurrency Conflict/i)).toBeInTheDocument();
+      expect(await screen.findByText(/409 Version Conflict/i)).toBeInTheDocument();
       expect(screen.getByText(/Current student version is 2/i)).toBeInTheDocument();
       expect(screen.getByText(/Reload Latest Student Data/i)).toBeInTheDocument();
 

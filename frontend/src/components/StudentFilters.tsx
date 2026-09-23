@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { StudentQueryFilters } from '../services/studentApi';
+import { SearchIcon } from './Icons';
 
 interface StudentFiltersProps {
   filters: StudentQueryFilters;
@@ -25,7 +26,9 @@ export const StudentFilters: React.FC<StudentFiltersProps> = ({
       <div className="filter-item search-filter">
         <label htmlFor="search-input" className="filter-label">Search Students</label>
         <div className="search-input-wrapper">
-          <span className="search-icon">🔍</span>
+          <span className="search-icon">
+            <SearchIcon size={16} />
+          </span>
           <input
             id="search-input"
             type="text"

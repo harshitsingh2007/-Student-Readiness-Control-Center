@@ -10,6 +10,7 @@ import React, { useState, useEffect } from 'react';
 import { createStudent } from '../services/studentApi';
 import { StudentSummary } from '../types/student';
 import { ApiError } from '../services/api';
+import { XCircleIcon } from './Icons';
 
 interface AddStudentModalProps {
   isOpen: boolean;
@@ -138,8 +139,9 @@ export const AddStudentModal: React.FC<AddStudentModalProps> = ({
         <form onSubmit={handleSubmit} noValidate>
           <div className="modal-body">
             {serverError && (
-              <div className="form-feedback feedback-error" role="alert" style={{ marginBottom: '20px' }}>
-                ❌ {serverError}
+              <div className="form-feedback feedback-error" role="alert" style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <XCircleIcon size={16} style={{ color: 'var(--rose-600)', flexShrink: 0 }} />
+                <span>{serverError}</span>
               </div>
             )}
 

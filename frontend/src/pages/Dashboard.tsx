@@ -15,6 +15,15 @@ import { getActivityAnalytics } from '../services/attemptApi';
 import { ActivityAnalyticsSummary } from '../types/attempt';
 import { AddStudentModal } from '../components/AddStudentModal';
 import { StudentSummary } from '../types/student';
+import {
+  CalendarIcon,
+  StudentsIcon,
+  CheckCircleIcon,
+  BoltIcon,
+  AlertTriangleIcon,
+  RefreshIcon,
+  XCircleIcon,
+} from '../components/Icons';
 
 interface DashboardProps {
   currentTenantId: string;
@@ -106,7 +115,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="welcome-text-col">
             <h1 className="welcome-heading">Student Directory & Cohort Roster</h1>
             <p className="welcome-subtext">
-              Manage student enrollments, inspect competency readiness scores, and resolve concurrency versions.
+              Manage student enrollments, inspect competency readiness scores, and view student version records.
             </p>
           </div>
           <div className="toolbar-right">
@@ -123,7 +132,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               onClick={refresh}
               disabled={isLoading || isRefreshing}
             >
-              🔄 Refresh List
+              <RefreshIcon size={14} /> Refresh List
             </button>
           </div>
         </div>
@@ -138,7 +147,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </p>
             </div>
             <div className="welcome-date-badge" aria-label="Today's Date">
-              <span className="date-icon">📅</span>
+              <span className="date-icon">
+                <CalendarIcon size={16} />
+              </span>
               <span className="date-text">{formattedDate}</span>
             </div>
           </div>
@@ -147,7 +158,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="kpi-grid">
             <div className="kpi-card kpi-total">
               <div className="kpi-icon-wrapper">
-                <span className="kpi-icon">👥</span>
+                <span className="kpi-icon">
+                  <StudentsIcon size={20} />
+                </span>
               </div>
               <div className="kpi-details">
                 <span className="kpi-label">Total Students</span>
@@ -158,7 +171,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             <div className="kpi-card kpi-ready">
               <div className="kpi-icon-wrapper">
-                <span className="kpi-icon">✅</span>
+                <span className="kpi-icon">
+                  <CheckCircleIcon size={20} />
+                </span>
               </div>
               <div className="kpi-details">
                 <span className="kpi-label">Ready</span>
@@ -169,7 +184,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             <div className="kpi-card kpi-developing">
               <div className="kpi-icon-wrapper">
-                <span className="kpi-icon">⚡</span>
+                <span className="kpi-icon">
+                  <BoltIcon size={20} />
+                </span>
               </div>
               <div className="kpi-details">
                 <span className="kpi-label">Developing</span>
@@ -180,7 +197,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
             <div className="kpi-card kpi-risk">
               <div className="kpi-icon-wrapper">
-                <span className="kpi-icon">⚠️</span>
+                <span className="kpi-icon">
+                  <AlertTriangleIcon size={20} />
+                </span>
               </div>
               <div className="kpi-details">
                 <span className="kpi-label">At Risk / Incomplete</span>
@@ -209,7 +228,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 onClick={refresh}
                 disabled={isLoading || isRefreshing}
               >
-                🔄 Refresh List
+                <RefreshIcon size={14} /> Refresh List
               </button>
             </div>
           </div>
@@ -220,9 +239,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div
           className={`form-feedback feedback-${notification.type}`}
           role="status"
-          style={{ marginBottom: '20px' }}
+          style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}
         >
-          {notification.type === 'success' ? '✅ ' : '❌ '}
+          {notification.type === 'success' ? <CheckCircleIcon size={16} /> : <XCircleIcon size={16} />}
           {notification.message}
         </div>
       )}
@@ -297,12 +316,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
                   <h4>Duplicate Success Event Anomalies</h4>
                   {analytics.multipleSuccessEventAnomalies.length === 0 ? (
-                    <p className="text-success">✅ Zero duplicate success event anomalies detected in the last 24 hours.</p>
+                    <p className="text-success" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <CheckCircleIcon size={16} style={{ color: 'var(--emerald-600)', flexShrink: 0 }} />
+                      <span>Zero duplicate success event anomalies detected in the last 24 hours.</span>
+                    </p>
                   ) : (
                     <ul className="anomaly-list">
                       {analytics.multipleSuccessEventAnomalies.map((anom) => (
-                        <li key={anom.attemptId}>
-                          ⚠️ Attempt #{anom.attemptId} has {anom.eventCount} recorded success events (anomaly)!
+                        <li key={anom.attemptId} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <AlertTriangleIcon size={14} style={{ color: 'var(--amber-700)', flexShrink: 0 }} />
+                          <span>Attempt #{anom.attemptId} has {anom.eventCount} recorded success events (anomaly)!</span>
                         </li>
                       ))}
                     </ul>

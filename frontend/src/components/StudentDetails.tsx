@@ -12,6 +12,7 @@ import { StudentDetail } from '../types/student';
 import { StatusBadge } from './StatusBadge';
 import { updateStudent } from '../services/studentApi';
 import { ApiError } from '../services/api';
+import { AlertTriangleIcon, CheckCircleIcon, EditIcon, LockClosedIcon } from './Icons';
 
 interface StudentDetailsProps {
   detail: StudentDetail;
@@ -103,9 +104,9 @@ export const StudentDetails: React.FC<StudentDetailsProps> = ({
 
       {conflictError && (
         <div className="conflict-alert-box" role="alert">
-          <div className="conflict-header">
-            <span className="alert-icon">⚠️</span>
-            <strong>409 Optimistic Concurrency Conflict</strong>
+          <div className="conflict-header" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangleIcon size={18} style={{ color: 'var(--amber-700)', flexShrink: 0 }} />
+            <strong>409 Version Conflict (Collision Detected)</strong>
           </div>
           <p>{conflictError.message}</p>
           <p className="conflict-details">
@@ -122,8 +123,9 @@ export const StudentDetails: React.FC<StudentDetailsProps> = ({
       )}
 
       {successMessage && (
-        <div className="success-banner" role="status">
-          ✅ {successMessage}
+        <div className="success-banner" role="status" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <CheckCircleIcon size={16} style={{ color: 'var(--emerald-600)', flexShrink: 0 }} />
+          <span>{successMessage}</span>
         </div>
       )}
 
@@ -152,8 +154,10 @@ export const StudentDetails: React.FC<StudentDetailsProps> = ({
               type="button"
               className="btn-secondary"
               onClick={() => setIsEditing(true)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              ✏️ Edit Profile (Optimistic Lock)
+              <EditIcon size={14} />
+              <span>Edit Profile</span>
             </button>
           </div>
         </div>
@@ -185,8 +189,9 @@ export const StudentDetails: React.FC<StudentDetailsProps> = ({
               />
             </div>
           </div>
-          <div className="version-lock-notice">
-            🔒 Guarded by expectedVersion: <code>v{student.version}</code>
+          <div className="version-lock-notice" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <LockClosedIcon size={14} />
+            <span>Guarded by expectedVersion: <code>v{student.version}</code></span>
           </div>
           <div className="form-actions">
             <button

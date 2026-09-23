@@ -8,6 +8,15 @@
 import React, { useState, useEffect } from 'react';
 import { getActivityAnalytics } from '../services/attemptApi';
 import { ActivityAnalyticsSummary } from '../types/attempt';
+import {
+  RefreshIcon,
+  AlertTriangleIcon,
+  TargetIcon,
+  PackageIcon,
+  BoltIcon,
+  ClockIcon,
+  CheckCircleIcon,
+} from '../components/Icons';
 
 interface AnalyticsViewProps {
   currentTenantId: string;
@@ -50,8 +59,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currentTenantId })
             className="btn-refresh"
             onClick={fetchAnalytics}
             disabled={isLoading}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            🔄 Refresh Analytics
+            <RefreshIcon size={14} />
+            <span>Refresh Analytics</span>
           </button>
         </div>
       </div>
@@ -62,8 +73,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currentTenantId })
           <p>Running MongoDB 24-hour aggregation pipeline across operational events...</p>
         </div>
       ) : errorMessage ? (
-        <div className="card error-banner" role="alert">
-          ⚠️ {errorMessage}
+        <div className="card error-banner" role="alert" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <AlertTriangleIcon size={16} style={{ color: 'var(--amber-700)', flexShrink: 0 }} />
+          <span>{errorMessage}</span>
         </div>
       ) : analytics ? (
         <div className="analytics-view-grid">
@@ -71,7 +83,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currentTenantId })
           <div className="kpi-grid">
             <div className="kpi-card kpi-ready">
               <div className="kpi-icon-wrapper">
-                <span className="kpi-icon">🎯</span>
+                <span className="kpi-icon">
+                  <TargetIcon size={20} />
+                </span>
               </div>
               <div className="kpi-details">
                 <span className="kpi-label">Unique Assessments</span>
@@ -82,7 +96,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currentTenantId })
 
             <div className="kpi-card kpi-total">
               <div className="kpi-icon-wrapper">
-                <span className="kpi-icon">📦</span>
+                <span className="kpi-icon">
+                  <PackageIcon size={20} />
+                </span>
               </div>
               <div className="kpi-details">
                 <span className="kpi-label">Total Events</span>
@@ -93,7 +109,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currentTenantId })
 
             <div className="kpi-card kpi-developing">
               <div className="kpi-icon-wrapper">
-                <span className="kpi-icon">⚡</span>
+                <span className="kpi-icon">
+                  <BoltIcon size={20} />
+                </span>
               </div>
               <div className="kpi-details">
                 <span className="kpi-label">Validation Failure Rate</span>
@@ -106,7 +124,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currentTenantId })
 
             <div className="kpi-card kpi-risk">
               <div className="kpi-icon-wrapper">
-                <span className="kpi-icon">⏱️</span>
+                <span className="kpi-icon">
+                  <ClockIcon size={20} />
+                </span>
               </div>
               <div className="kpi-details">
                 <span className="kpi-label">p95 Latency</span>
@@ -144,15 +164,16 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ currentTenantId })
 
             {analytics.multipleSuccessEventAnomalies.length === 0 ? (
               <div className="success-banner" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>✅</span>
+                <CheckCircleIcon size={16} style={{ color: 'var(--emerald-600)', flexShrink: 0 }} />
                 <strong>Zero duplicate success anomalies detected.</strong>
                 <span>Idempotency-Key locks in PostgreSQL guaranteed exactly-once processing.</span>
               </div>
             ) : (
               <ul className="anomaly-list">
                 {analytics.multipleSuccessEventAnomalies.map((anom) => (
-                  <li key={anom.attemptId}>
-                    ⚠️ Attempt #{anom.attemptId} generated {anom.eventCount} success events in MongoDB!
+                  <li key={anom.attemptId} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <AlertTriangleIcon size={14} style={{ color: 'var(--amber-700)', flexShrink: 0 }} />
+                    <span>Attempt #{anom.attemptId} generated {anom.eventCount} success events in MongoDB!</span>
                   </li>
                 ))}
               </ul>

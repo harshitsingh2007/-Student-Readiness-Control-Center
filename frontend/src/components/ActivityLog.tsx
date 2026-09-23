@@ -10,6 +10,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { OperationalActivityEvent } from '../types/attempt';
 import { getStudentActivity } from '../services/studentApi';
 import { LoadingState } from './LoadingState';
+import { RefreshIcon, InfoIcon } from './Icons';
 
 interface ActivityLogProps {
   studentId: string;
@@ -55,14 +56,17 @@ export const ActivityLog: React.FC<ActivityLogProps> = ({ studentId }) => {
           className="btn-refresh-small"
           onClick={() => loadEvents(page)}
           disabled={isLoading}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
         >
-          🔄 Refresh
+          <RefreshIcon size={14} />
+          <span>Refresh</span>
         </button>
       </div>
 
       {warningMessage && (
-        <div className="warning-banner" role="alert">
-          ℹ️ {warningMessage}
+        <div className="warning-banner" role="alert" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <InfoIcon size={16} style={{ color: 'var(--blue-600)', flexShrink: 0 }} />
+          <span>{warningMessage}</span>
         </div>
       )}
 

@@ -7,6 +7,8 @@
  *      or exhausting server resources.
  */
 
+const { recordRejectedEvent } = require('../services/eventPublisher');
+
 /**
  * Filter object to only allow permitted keys (prevents Mass Assignment).
  */
@@ -48,7 +50,7 @@ const validatePagination = (req, res, next) => {
 /**
  * Validates attempt creation payload.
  */
-const validateAttemptPayload = (req, res, next) => {
+const validateAttemptPayload = async (req, res, next) => {
   const { competencyKey, score, notes } = req.body || {};
   const fieldErrors = {};
 
@@ -70,6 +72,18 @@ const validateAttemptPayload = (req, res, next) => {
   }
 
   if (Object.keys(fieldErrors).length > 0) {
+    await recordRejectedEvent({
+      tenantId: req.tenantId || req.user?.tenantId,
+      studentId: req.params?.id || null,
+      requestId: req.requestId,
+      reason: 'VALIDATION_ERROR',
+      metadata: {
+        validationFailure: true,
+        fieldErrors,
+        idempotencyKey: req.headers ? req.headers['idempotency-key'] : null,
+      },
+    });
+
     return res.status(400).json({
       code: 'VALIDATION_ERROR',
       message: 'Assessment attempt payload failed validation.',

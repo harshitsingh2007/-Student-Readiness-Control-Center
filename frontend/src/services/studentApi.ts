@@ -6,8 +6,9 @@
 
 import { apiClient } from './api';
 import { PaginatedResponse } from '../types/api';
-import { StudentSummary, StudentDetail } from '../types/student';
+import { StudentSummary, StudentDetail, CompetencyDefinition } from '../types/student';
 import { OperationalActivityEvent } from '../types/attempt';
+import { isStudentSummary, isStudentDetail, isPaginatedList } from '../utils/validators';
 
 export interface StudentQueryFilters {
   search?: string;
@@ -31,11 +32,15 @@ export async function getStudents(filters: StudentQueryFilters = {}): Promise<Pa
   const queryStr = params.toString() ? `?${params.toString()}` : '';
   return apiClient<PaginatedResponse<StudentSummary>>(`/students${queryStr}`, {
     signal: filters.signal,
+    validator: (d) => isPaginatedList(d, isStudentSummary),
   });
 }
 
 export async function getStudentById(id: string, signal?: AbortSignal): Promise<StudentDetail> {
-  return apiClient<StudentDetail>(`/students/${id}`, { signal });
+  return apiClient<StudentDetail>(`/students/${id}`, {
+    signal,
+    validator: isStudentDetail,
+  });
 }
 
 export interface UpdateStudentPayload {
@@ -49,6 +54,7 @@ export async function updateStudent(id: string, payload: UpdateStudentPayload, s
     method: 'PATCH',
     body: JSON.stringify(payload),
     signal,
+    validator: (d) => isStudentSummary(d?.student),
   });
 }
 
@@ -70,3 +76,8 @@ export async function createStudent(payload: CreateStudentPayload, signal?: Abor
     signal,
   });
 }
+
+export async function getCompetencies(signal?: AbortSignal): Promise<{ competencies: CompetencyDefinition[] }> {
+  return apiClient<{ competencies: CompetencyDefinition[] }>('/competencies', { signal });
+}
+

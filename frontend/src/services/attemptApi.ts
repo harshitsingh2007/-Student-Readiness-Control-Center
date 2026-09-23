@@ -6,6 +6,7 @@
 
 import { apiClient } from './api';
 import { SubmitAttemptPayload, SubmitAttemptResponse, ActivityAnalyticsSummary } from '../types/attempt';
+import { isAssessmentAttemptResponse, isAnalyticsSummary } from '../utils/validators';
 
 export async function submitAssessmentAttempt(
   studentId: string,
@@ -19,10 +20,14 @@ export async function submitAssessmentAttempt(
       'Idempotency-Key': idempotencyKey,
     },
     body: JSON.stringify(payload),
+    validator: isAssessmentAttemptResponse,
     signal,
   });
 }
 
 export async function getActivityAnalytics(signal?: AbortSignal): Promise<ActivityAnalyticsSummary> {
-  return apiClient<ActivityAnalyticsSummary>('/analytics/activity-summary', { signal });
+  return apiClient<ActivityAnalyticsSummary>('/analytics/activity-summary', {
+    validator: isAnalyticsSummary,
+    signal,
+  });
 }

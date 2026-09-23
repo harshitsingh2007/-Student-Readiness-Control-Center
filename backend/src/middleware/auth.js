@@ -9,11 +9,16 @@
 
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_production_ready_jwt_key_32chars_long';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.trim().length === 0) {
+    throw new Error('JWT_SECRET is required');
+  }
+  return secret;
+};
 
 const generateToken = (payload) => {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: process.env.JWT_EXPIRES_IN || '24h' });
 };
 
 const authenticate = (req, res, next) => {
@@ -29,7 +34,7 @@ const authenticate = (req, res, next) => {
 
   const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, getJwtSecret());
     // Authenticated context determines identity and tenant
     req.user = {
       userId: decoded.userId,
@@ -76,4 +81,5 @@ module.exports = {
   authenticate,
   requireRole,
   generateToken,
+  getJwtSecret,
 };

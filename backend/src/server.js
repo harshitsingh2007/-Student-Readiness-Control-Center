@@ -10,6 +10,11 @@
 const dotenv = require('dotenv');
 dotenv.config();
 
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim().length === 0) {
+  console.error('[Server] FATAL: JWT_SECRET environment variable is required.');
+  process.exit(1);
+}
+
 const app = require('./app');
 const { connectMongo, closeMongo } = require('./config/mongodb');
 const { pool } = require('./config/postgres');

@@ -14,6 +14,7 @@ import { getStudentById } from '../services/studentApi';
 import { StudentDetails } from '../components/StudentDetails';
 import { CompetencyTable } from '../components/CompetencyTable';
 import { AttemptForm } from '../components/AttemptForm';
+import { ActivityLog } from '../components/ActivityLog';
 import { LoadingState } from '../components/LoadingState';
 import { ApiError } from '../services/api';
 import { AlertTriangleIcon } from '../components/Icons';
@@ -29,6 +30,7 @@ export const StudentPage: React.FC<StudentPageProps> = ({
 }) => {
   // Part A2 Discriminated Union State
   const [asyncState, setAsyncState] = useState<StudentAsyncState>({ status: 'idle' });
+  const [showAuditLog, setShowAuditLog] = useState<boolean>(false);
   const activeControllerRef = useRef<AbortController | null>(null);
   const requestCounterRef = useRef<number>(0);
 
@@ -174,6 +176,33 @@ export const StudentPage: React.FC<StudentPageProps> = ({
           competencies={detail.competencies}
           onAttemptCreated={() => fetchStudentData(true)}
         />
+
+        {/* Diagnostic Audit Trail & Operational Events (Phase 8 Requirement) */}
+        <div className="card" style={{ marginTop: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--slate-800)', margin: 0 }}>
+                Diagnostic Audit Trail &amp; Operational Events
+              </h3>
+              <p style={{ fontSize: '13px', color: 'var(--slate-500)', margin: '4px 0 0 0' }}>
+                Append-only operational event history stored in MongoDB for this student.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowAuditLog(prev => !prev)}
+              style={{ fontSize: '13px', padding: '6px 14px' }}
+            >
+              {showAuditLog ? 'Hide Audit Log' : 'Inspect Audit Log'}
+            </button>
+          </div>
+          {showAuditLog && (
+            <div style={{ marginTop: '16px', borderTop: '1px solid var(--slate-100)', paddingTop: '16px' }}>
+              <ActivityLog studentId={studentId} />
+            </div>
+          )}
+        </div>
       </div>
     );
   };

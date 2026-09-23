@@ -11,8 +11,9 @@
 
 const { MongoClient } = require('mongodb');
 const dotenv = require('dotenv');
+const path = require('path');
 
-dotenv.config();
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/student_readiness_operational';
 

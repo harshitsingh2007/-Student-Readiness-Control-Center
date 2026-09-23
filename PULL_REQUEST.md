@@ -28,25 +28,28 @@ The platform provides multi-tenant competency assessment, server-side authoritat
 
 ---
 
-## Automated Tests Performed
+## Automated Tests Performed (55/55 Passing Tests)
 
-### 1. Domain Logic Tests (`backend/tests/domain/`)
+### 1. Specification Compliance Suite (`backend/tests/integration/compliance.test.js`)
+- 10/10 Passed: A5 concurrent different-key row lock serialization, A6 operational latency tracking in MongoDB events, A6 validation failure event logging (`attempt.rejected`), A6 true p95 latency calculation, A6 duplicate-success anomaly detection, A6 tenant analytics isolation, A7 production demo-login 404 gate, A7 production unauthorized tenant switching 403 gate, A7 fail-fast missing `JWT_SECRET` exception, and Phase 5 dynamic competencies endpoint `GET /api/competencies`.
+
+### 2. Domain Logic Tests (`backend/tests/domain/`)
 - 14/14 Passed: Boundaries for `READY` (80.00), `NEARLY_READY` (65.00), `DEVELOPING` (50.00), `NEEDS_PREPARATION` (<50), and `INCOMPLETE` (missing required competency attempt).
 - Deterministic tie-breaking (equal timestamp -> higher attempt ID wins).
 - Mathematical invariants: score is bounded within $[0, 100]$.
 - Data-driven extensibility: supports required vs. optional competencies (missing optional competency does not mark student INCOMPLETE).
 
-### 2. API Integration Tests (`backend/tests/integration/`)
-- 10/10 Passed: Successful attempt creation, transaction rollback, tenant isolation, non-disclosing 404, optimistic concurrency `409 Conflict`, input validation.
+### 3. API Integration Tests (`backend/tests/integration/`)
+- 18/18 Passed: Successful attempt creation, transaction rollback, tenant isolation, non-disclosing 404, optimistic concurrency `409 Conflict`, input validation, and dynamic student creation.
 
-### 3. Idempotency & Concurrency Tests (`backend/tests/idempotency/`)
+### 4. Idempotency & Concurrency Tests (`backend/tests/idempotency/`)
 - 3/3 Passed: 3 concurrent identical requests produce exactly ONE attempt and ONE outbox event, and all 3 receive successful responses (1 created, 2 replayed); replay returns original payload with header; fingerprint mismatch returns 422.
 
-### 4. Failure Injection Tests (`backend/tests/integration/failureInjection.test.js`)
-- 1/1 Passed: Simulated MongoDB outage confirms relational commit succeeds, event remains pending in outbox, and flushes with zero duplication on recovery.
+### 5. Failure Injection Tests (`backend/tests/integration/failureInjection.test.js`)
+- 2/2 Passed: Simulated MongoDB outage confirms relational commit succeeds, event remains pending in outbox, and flushes with zero duplication on recovery.
 
-### 5. Frontend Resilience Tests (`frontend/src/tests/`)
-- 4/4 Passed: Out-of-order response protection, `AbortController` cancellation on fast tenant switch, 409 conflict banner display, and background refresh failure data preservation.
+### 6. Frontend Resilience & Component Tests (`frontend/src/tests/`)
+- 8/8 Passed: Out-of-order response protection, `AbortController` cancellation on fast tenant switch, 409 conflict banner display, background refresh failure data preservation, and `AddStudentModal` form validation/creation.
 
 ---
 

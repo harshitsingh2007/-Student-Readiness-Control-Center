@@ -19,6 +19,7 @@ const { errorHandler } = require('./middleware/errorHandler');
 const authRoutes = require('./routes/auth');
 const studentRoutes = require('./routes/students');
 const activityRoutes = require('./routes/activity');
+const competenciesRoutes = require('./routes/competencies');
 
 const app = express();
 
@@ -82,6 +83,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/analytics', activityRoutes);
+app.use('/api/competencies', competenciesRoutes);
 
 // 8. 404 Handler for undefined routes
 app.use((req, res) => {

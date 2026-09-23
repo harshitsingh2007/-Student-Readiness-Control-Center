@@ -92,6 +92,64 @@ Use the Transactional Outbox pattern. Events are inserted into an `outbox_events
 
 ---
 
+## Architectural Decision 5: Row-Level `SELECT ... FOR UPDATE` for Concurrent Non-Identical Submissions (A5)
+
+### Context
+When two evaluators concurrently submit different competency attempts (or different scores with distinct `Idempotency-Key`s) for the same student, naive concurrent transactions can read identical initial states, commit conflicting attempts, and overwrite the student's `version` or calculate readiness out-of-order.
+
+### Decision
+Acquire an exclusive row-level lock on the student row at the beginning of the attempt transaction:
+```sql
+SELECT id, tenant_id, name, version FROM students WHERE id = $1 AND tenant_id = $2 FOR UPDATE;
+```
+This forces concurrent transactions for the same student to queue sequentially. The second transaction unblocks only after the first commits, reading the updated student state, inserting its attempt, recalculating readiness on all valid non-void attempts, and incrementing version from $V+1$ to $V+2$.
+
+### Trade-offs & Analysis
+- **Positives**:
+  - Completely eliminates lost updates and race condition readiness drift.
+  - Zero chance of stale version overwrites.
+- **Negatives**:
+  - Adds a small lock serialization delay (typically <50ms) only when submissions target the exact same student concurrently.
+
+---
+
+## Architectural Decision 6: Append-Only Operational Anomaly Pipeline with Nullable p95 Percentile (A6)
+
+### Context
+Operational monitoring requires aggregating latency percentiles, tracking validation rejections, and identifying duplicate success event anomalies over 24 hours in MongoDB without impacting PostgreSQL transactional throughput.
+
+### Decision
+1. Measure actual submission latency with high-resolution `performance.now()` in `attemptService.js` and store in event `metadata.latencyMs`.
+2. Record attempt validation rejections as `attempt.rejected` events with `reason: 'VALIDATION_ERROR'` and `metadata.validationFailure: true`.
+3. Compute the true 95th percentile using MongoDB aggregation, returning `null` (not an arbitrary constant) when zero successful submissions have been observed.
+4. Detect duplicate success event anomalies by grouping MongoDB events by `idempotencyKey` / `attemptId` and filtering for `count > 1`.
+
+### Trade-offs & Analysis
+- **Positives**:
+  - True observability into pipeline latency and failure rates.
+  - Returns honest null states rather than fabricated numbers.
+- **Negatives**:
+  - Requires MongoDB aggregation pipelines to process event history.
+
+---
+
+## Architectural Decision 7: Runtime Client Schema Validation Boundary (Phase 7)
+
+### Context
+TypeScript types only exist at compile time. In production, unvalidated server JSON payloads could drift, missing required fields or containing corrupt shapes that crash UI rendering silently.
+
+### Decision
+Introduce typed schema validation predicates (`isStudentSummary`, `isStudentDetail`, `isAssessmentAttemptResponse`, `isAnalyticsSummary`) executed inside `apiClient` before React state update. If an HTTP response does not conform to the expected client contract, throw a structured `ApiError(502, 'INVALID_RESPONSE_SCHEMA')`.
+
+### Trade-offs & Analysis
+- **Positives**:
+  - Prevents subtle runtime crashes and state corruption.
+  - Surfaces API contract violations immediately with actionable diagnostics.
+- **Negatives**:
+  - Adds a negligible microsecond CPU overhead during JSON parsing.
+
+---
+
 ## Consciously Deferred Improvement: Change Data Capture (Debezium/Kafka) Outbox Streaming
 
 ### Deferred Feature

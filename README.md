@@ -1,6 +1,6 @@
 # Student Readiness Control Center
 
-[![Backend Tests](https://img.shields.io/badge/backend_tests-36%2F36_passed-brightgreen.svg)]()
+[![Backend Tests](https://img.shields.io/badge/backend_tests-47%2F47_passed-brightgreen.svg)]()
 [![Frontend Tests](https://img.shields.io/badge/frontend_tests-8%2F8_passed-brightgreen.svg)]()
 [![Node](https://img.shields.io/badge/node->=18.0.0-blue.svg)]()
 [![React](https://img.shields.io/badge/react-18.3.1-blue.svg)]()
@@ -231,16 +231,17 @@ Open **`http://localhost:5175`** in your browser.
 ---
 
 ## 9. Automated Test Suite
-
-### Run All Backend Tests (36 Tests)
+ 
+### Run All Backend Tests (47 Tests Across 5 Suites)
 ```bash
 cd backend
 npm test
 ```
 Tests executed:
+- `tests/integration/compliance.test.js`: Full specification compliance verifying A5 concurrent different-key row lock serialization, A6 operational latency tracking in MongoDB, A6 validation failure event logging (`attempt.rejected`), A6 true p95 latency calculation, A6 duplicate-success anomaly detection, A6 tenant analytics isolation, A7 production demo-login 404 gate, A7 production unauthorized tenant switching 403 gate, A7 fail-fast missing `JWT_SECRET` exception, and Phase 5 dynamic competencies endpoint `GET /api/competencies` (10 tests).
 - `tests/domain/readinessService.test.js`: Domain boundary thresholds, tie-breaking, missing required vs. optional competencies, mathematical invariants (14 tests).
-- `tests/integration/api.test.js`: Authentication, authorization, tenant isolation, non-disclosing 404, optimistic concurrency, and dynamic student creation (15 tests).
-- `tests/idempotency/idempotency.test.js`: 3 parallel identical requests producing 1 attempt, stored replay, fingerprint mismatch rejection (5 tests).
+- `tests/integration/api.test.js`: Authentication, authorization, tenant isolation, non-disclosing 404, optimistic concurrency, and dynamic student creation (18 tests).
+- `tests/idempotency/idempotency.test.js`: 3 parallel identical requests producing 1 attempt, stored replay, fingerprint mismatch rejection (3 tests).
 - `tests/integration/failureInjection.test.js`: Simulated MongoDB outage, outbox persistence, and recovery flushing without duplicate events (2 tests).
 
 ### Run Frontend Resilience & Component Tests (8 Tests)

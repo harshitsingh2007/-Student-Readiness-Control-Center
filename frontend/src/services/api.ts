@@ -29,12 +29,13 @@ export class ApiError extends Error {
   }
 }
 
-interface RequestOptions extends RequestInit {
+export interface RequestOptions extends RequestInit {
   token?: string | null;
+  validator?: (data: any) => boolean;
 }
 
 export async function apiClient<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-  const { token, headers, ...rest } = options;
+  const { token, headers, validator, ...rest } = options;
 
   const defaultHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -67,5 +68,15 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
     throw new ApiError(response.status, errorJson);
   }
 
-  return response.json() as Promise<T>;
+  const jsonData = await response.json();
+
+  // Phase 7: Runtime Schema Validation Boundary
+  if (validator && !validator(jsonData)) {
+    throw new ApiError(502, {
+      code: 'INVALID_RESPONSE_SCHEMA',
+      message: 'Server response did not conform to the expected client contract schema.',
+    });
+  }
+
+  return jsonData as T;
 }

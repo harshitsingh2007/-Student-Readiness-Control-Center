@@ -27,6 +27,9 @@ const createAttempt = async (req, res, next) => {
       studentId: req.params.id,
       requestId: req.requestId,
       reason: 'MISSING_IDEMPOTENCY_KEY',
+      metadata: {
+        validationFailure: true,
+      },
     });
 
     return res.status(400).json({
@@ -62,7 +65,11 @@ const createAttempt = async (req, res, next) => {
       studentId: req.params.id,
       requestId: req.requestId,
       reason: err.code || 'ATTEMPT_CREATION_FAILED',
-      metadata: { error: err.message },
+      metadata: {
+        error: err.message,
+        idempotencyKey: idempotencyKey ? idempotencyKey.trim() : null,
+        validationFailure: err.statusCode === 400 || err.statusCode === 422,
+      },
     });
     next(err);
   }

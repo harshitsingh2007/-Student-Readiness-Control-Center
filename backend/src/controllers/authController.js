@@ -141,6 +141,16 @@ const getAvailableTenants = async (req, res, next) => {
  */
 const demoLogin = async (req, res, next) => {
   try {
+    // Production Security Guardrail: Never expose demo login in production
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(404).json({
+        code: 'NOT_FOUND',
+        message: 'Demo login is disabled in production environments.',
+        requestId: req.requestId,
+        fieldErrors: {},
+      });
+    }
+
     const { email } = req.body || {};
     if (!email || typeof email !== 'string') {
       return res.status(400).json({
@@ -210,6 +220,47 @@ const switchTenant = async (req, res, next) => {
       });
     }
 
+    // In production, strictly enforce membership: user must exist in the target tenant
+    if (process.env.NODE_ENV === 'production') {
+      const membershipRes = await query(
+        `SELECT u.id, u.tenant_id, u.name, u.email, u.role, t.name as tenant_name 
+         FROM users u 
+         JOIN tenants t ON u.tenant_id = t.id 
+         WHERE u.email = $1 AND u.tenant_id = $2;`,
+        [req.user.email, targetTenantId]
+      );
+
+      if (membershipRes.rows.length === 0) {
+        return res.status(403).json({
+          code: 'FORBIDDEN',
+          message: 'You are not authorized to switch to this tenant.',
+          requestId: req.requestId,
+        });
+      }
+
+      const authorizedUser = membershipRes.rows[0];
+      const token = generateToken({
+        userId: authorizedUser.id,
+        tenantId: authorizedUser.tenant_id,
+        role: authorizedUser.role,
+        email: authorizedUser.email,
+      });
+
+      return res.status(200).json({
+        token,
+        user: {
+          id: authorizedUser.id,
+          tenantId: authorizedUser.tenant_id,
+          tenantName: authorizedUser.tenant_name,
+          name: authorizedUser.name,
+          email: authorizedUser.email,
+          role: authorizedUser.role,
+        },
+        requestId: req.requestId,
+      });
+    }
+
+    // In development/demo, swap to evaluator of target tenant if tenant exists
     const userRes = await query(
       `SELECT u.id, u.tenant_id, u.name, u.email, u.role, t.name as tenant_name 
        FROM users u 

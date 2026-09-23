@@ -20,6 +20,9 @@ export interface CompetencyDefinition {
   name: string;
   weight: number;
   active: boolean;
+  required?: boolean;
+  description?: string;
+  criteria?: string;
 }
 
 export interface CompetencyEvidence {

@@ -100,22 +100,46 @@ const getActivityAnalytics = async (req, res, next) => {
             { $group: { _id: '$attemptId' } },
             { $count: 'count' },
           ],
-          // 2. Anomaly: Multiple success events for the exact same attempt
+          // 2. Anomaly: Multiple success events for the exact same attempt or idempotency key
           duplicateSuccessEvents: [
-            { $match: { eventType: 'attempt.succeeded', attemptId: { $ne: null } } },
-            { $group: { _id: '$attemptId', count: { $sum: 1 } } },
+            { $match: { eventType: 'attempt.succeeded' } },
+            {
+              $group: {
+                _id: {
+                  attemptId: '$attemptId',
+                  idempotencyKey: { $ifNull: ['$idempotencyKey', '$metadata.idempotencyKey'] },
+                },
+                count: { $sum: 1 },
+              },
+            },
             { $match: { count: { $gt: 1 } } },
             {
               $project: {
-                attemptId: '$_id',
+                attemptId: '$_id.attemptId',
+                idempotencyKey: '$_id.idempotencyKey',
                 eventCount: '$count',
                 _id: 0,
               },
             },
           ],
-          // 3. Validation failure rate
+          // 3. Event counts and validation failure counts
           eventTypeCounts: [
             { $group: { _id: '$eventType', count: { $sum: 1 } } },
+          ],
+          validationRejections: [
+            {
+              $match: {
+                eventType: 'attempt.rejected',
+                $or: [
+                  { 'metadata.validationFailure': true },
+                  { reason: 'VALIDATION_ERROR' },
+                  { reason: 'MISSING_IDEMPOTENCY_KEY' },
+                  { reason: 'INVALID_COMPETENCY' },
+                  { reason: 'IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_BODY' },
+                ],
+              },
+            },
+            { $count: 'count' },
           ],
           // 4. Latency analysis
           latencyStats: [
@@ -143,18 +167,19 @@ const getActivityAnalytics = async (req, res, next) => {
       return acc;
     }, {});
 
-    const totalSubmissions = (eventCounts['attempt.succeeded'] || 0) + (eventCounts['attempt.rejected'] || 0);
     const rejectedCount = eventCounts['attempt.rejected'] || 0;
+    const validationFailureCount = summary.validationRejections[0]?.count || rejectedCount;
+    const totalSubmissions = (eventCounts['attempt.succeeded'] || 0) + rejectedCount;
     const validationFailureRate = totalSubmissions > 0
-      ? Math.round((rejectedCount / totalSubmissions) * 10000) / 100
+      ? Math.round((validationFailureCount / totalSubmissions) * 10000) / 100
       : 0;
 
     // Calculate p95 latency if available
     let p95LatencyMs = null;
-    const latencies = summary.latencyStats[0]?.latencies || [];
+    const latencies = (summary.latencyStats[0]?.latencies || []).filter(l => typeof l === 'number' && !isNaN(l));
     if (latencies.length > 0) {
       latencies.sort((a, b) => a - b);
-      const p95Index = Math.floor(latencies.length * 0.95);
+      const p95Index = Math.min(latencies.length - 1, Math.floor(latencies.length * 0.95));
       p95LatencyMs = latencies[p95Index];
     }
 

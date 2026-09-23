@@ -13,6 +13,7 @@
  *      scores, and prevents duplicate attempts from mobile retries or double-clicking.
  */
 
+const { performance } = require('perf_hooks');
 const { getClient } = require('../config/postgres');
 const { computeRequestFingerprint, checkOrAcquireIdempotency, completeIdempotency, releaseIdempotencyOnFailure } = require('./idempotencyService');
 const { recalculateStudentReadiness } = require('./readinessService');
@@ -37,6 +38,7 @@ const submitAttempt = async ({
   attemptData,
   requestId,
 }) => {
+  const startTime = performance.now();
   const client = await getClient();
   const fingerprint = computeRequestFingerprint(attemptData);
 
@@ -126,10 +128,13 @@ const submitAttempt = async ({
       [studentId, tenantId]
     );
 
+    const latencyMs = Math.max(1, Math.round(performance.now() - startTime));
+
     // 7. Insert operational event into outbox
     const eventId = await recordOutboxEvent(client, tenantId, 'attempt.succeeded', {
       studentId,
       attemptId: newAttempt.id,
+      idempotencyKey,
       requestId,
       metadata: {
         competencyKey: competency.key,
@@ -137,6 +142,7 @@ const submitAttempt = async ({
         evaluatorId,
         newReadiness: updatedReadiness.status,
         newOverallScore: updatedReadiness.score,
+        latencyMs,
       },
     });
 

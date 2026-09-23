@@ -78,21 +78,97 @@ export const Dashboard: React.FC<DashboardProps> = ({
       : null;
   const errorMessage = state.status === 'error' ? state.message : undefined;
 
+  // Dynamic KPI Calculations from authoritative active data
+  const totalCount = activeData?.pagination?.totalItems ?? activeData?.items?.length ?? 0;
+  const readyCount = activeData?.items?.filter((s) => s.currentReadiness === 'READY').length ?? 0;
+  const developingCount = activeData?.items?.filter(
+    (s) => s.currentReadiness === 'DEVELOPING' || s.currentReadiness === 'NEARLY_READY'
+  ).length ?? 0;
+  const atRiskCount = activeData?.items?.filter(
+    (s) => s.currentReadiness === 'NEEDS_PREPARATION' || s.currentReadiness === 'INCOMPLETE'
+  ).length ?? 0;
+
+  // Human-readable localized date
+  const formattedDate = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date());
+
   return (
     <div className="dashboard-container">
-      <div className="dashboard-header-row">
-        <div>
-          <h2>Student Readiness Dashboard</h2>
-          <p className="page-subtitle">
-            Evaluating competency evidence, deterministic tie-breaking, and multi-tenant isolation.
+      {/* SaaS Welcome Greeting & Date Banner */}
+      <div className="dashboard-welcome-header">
+        <div className="welcome-text-col">
+          <h1 className="welcome-heading">Welcome Back!</h1>
+          <p className="welcome-subtext">
+            Monitor, evaluate, and track student competency readiness across cohorts.
           </p>
         </div>
-        <div className="dashboard-actions">
+        <div className="welcome-date-badge" aria-label="Today's Date">
+          <span className="date-icon">📅</span>
+          <span className="date-text">{formattedDate}</span>
+        </div>
+      </div>
+
+      {/* 4 Dynamic Metric KPI Cards */}
+      <div className="kpi-grid">
+        <div className="kpi-card kpi-total">
+          <div className="kpi-icon-wrapper">
+            <span className="kpi-icon">👥</span>
+          </div>
+          <div className="kpi-details">
+            <span className="kpi-label">Total Students</span>
+            <span className="kpi-value">{totalCount}</span>
+            <span className="kpi-note">Enrolled in cohort</span>
+          </div>
+        </div>
+
+        <div className="kpi-card kpi-ready">
+          <div className="kpi-icon-wrapper">
+            <span className="kpi-icon">✅</span>
+          </div>
+          <div className="kpi-details">
+            <span className="kpi-label">Ready</span>
+            <span className="kpi-value">{readyCount}</span>
+            <span className="kpi-note kpi-note-ready">Target met (≥ 80%)</span>
+          </div>
+        </div>
+
+        <div className="kpi-card kpi-developing">
+          <div className="kpi-icon-wrapper">
+            <span className="kpi-icon">⚡</span>
+          </div>
+          <div className="kpi-details">
+            <span className="kpi-label">Developing</span>
+            <span className="kpi-value">{developingCount}</span>
+            <span className="kpi-note kpi-note-dev">In progress (50–79%)</span>
+          </div>
+        </div>
+
+        <div className="kpi-card kpi-risk">
+          <div className="kpi-icon-wrapper">
+            <span className="kpi-icon">⚠️</span>
+          </div>
+          <div className="kpi-details">
+            <span className="kpi-label">At Risk / Incomplete</span>
+            <span className="kpi-value">{atRiskCount}</span>
+            <span className="kpi-note kpi-note-risk">Needs attention</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Action Toolbar */}
+      <div className="dashboard-toolbar">
+        <div className="toolbar-left">
+          <h2 className="toolbar-section-title">Cohort Overview</h2>
+        </div>
+        <div className="toolbar-right">
           <button
             type="button"
             className="btn-primary"
             onClick={() => setShowAddStudentModal(true)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
             + Add New Student
           </button>

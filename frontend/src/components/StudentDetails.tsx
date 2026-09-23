@@ -18,6 +18,12 @@ interface StudentDetailsProps {
   onRefresh: () => void;
 }
 
+const getInitials = (name: string) => {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+};
+
 export const StudentDetails: React.FC<StudentDetailsProps> = ({
   detail,
   onRefresh,
@@ -73,9 +79,14 @@ export const StudentDetails: React.FC<StudentDetailsProps> = ({
   return (
     <div className="card student-overview-card">
       <div className="overview-header">
-        <div>
-          <h2>{student.name}</h2>
-          <span className="student-id-badge">ID: {student.id}</span>
+        <div className="overview-student-title">
+          <div className="student-avatar-lg" aria-hidden="true">
+            {getInitials(student.name)}
+          </div>
+          <div>
+            <h2>{student.name}</h2>
+            <span className="student-id-badge">ID: {student.id}</span>
+          </div>
         </div>
         <div className="overview-readiness-box">
           <div className="readiness-score-display">

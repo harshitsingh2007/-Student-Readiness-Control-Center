@@ -16,6 +16,7 @@ import React, { useState, useEffect } from 'react';
 import { UserProfile, AuthResponse } from './types/api';
 import { apiClient } from './services/api';
 import { Navbar } from './components/Navbar';
+import { Sidebar, NavTab } from './components/Sidebar';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { StudentPage } from './pages/StudentPage';
@@ -23,6 +24,7 @@ import { StudentPage } from './pages/StudentPage';
 export const App: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState<boolean>(false);
 
@@ -125,29 +127,42 @@ export const App: React.FC = () => {
 
   return (
     <div className="app-shell">
-      <Navbar
-        user={user}
-        onSwitchTenant={handleSwitchTenant}
-        onLogout={handleLogout}
-        onNavigateHome={navigateToDashboard}
+      <Sidebar
+        activeTab={activeTab}
+        onSelectTab={(tab) => {
+          setActiveTab(tab);
+          if (tab === 'dashboard' || tab === 'students') {
+            navigateToDashboard();
+          }
+        }}
         onOpenAnalytics={() => setShowAnalyticsModal(true)}
       />
 
-      <main className="main-content">
-        {selectedStudentId ? (
-          <StudentPage
-            studentId={selectedStudentId}
-            onBack={navigateToDashboard}
-          />
-        ) : (
-          <Dashboard
-            currentTenantId={user.tenantId}
-            onSelectStudent={navigateToStudent}
-            showAnalyticsModal={showAnalyticsModal}
-            onCloseAnalyticsModal={() => setShowAnalyticsModal(false)}
-          />
-        )}
-      </main>
+      <div className="app-main-area">
+        <Navbar
+          user={user}
+          onSwitchTenant={handleSwitchTenant}
+          onLogout={handleLogout}
+          onNavigateHome={navigateToDashboard}
+          onOpenAnalytics={() => setShowAnalyticsModal(true)}
+        />
+
+        <main className="main-content">
+          {selectedStudentId ? (
+            <StudentPage
+              studentId={selectedStudentId}
+              onBack={navigateToDashboard}
+            />
+          ) : (
+            <Dashboard
+              currentTenantId={user.tenantId}
+              onSelectStudent={navigateToStudent}
+              showAnalyticsModal={showAnalyticsModal}
+              onCloseAnalyticsModal={() => setShowAnalyticsModal(false)}
+            />
+          )}
+        </main>
+      </div>
     </div>
   );
 };

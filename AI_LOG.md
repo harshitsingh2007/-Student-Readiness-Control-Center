@@ -101,10 +101,55 @@ In compliance with the assessment's AI use disclosure policy, this document accu
 
 ---
 
+## Contribution Log Entry #6: Dynamic "Add New Student" Workflow
+
+- **Tool Used**: Antigravity AI Assistant
+- **Prompt**:
+  > "Add a complete dynamic 'Add New Student' workflow allowing evaluators/admins to create student records in their tenant. Preserve A1-A5 requirements, seed data, and tenant isolation."
+- **Output Accepted**:
+  - `POST /api/students` endpoint in `studentController.js` and `students.js`.
+  - Enforced server-derived `tenant_id` from JWT session.
+  - PostgreSQL unique constraint mapped to `409 Conflict` (`DUPLICATE_STUDENT_EMAIL`).
+  - Transactional outbox event `student.created` emitted to MongoDB.
+  - `AddStudentModal.tsx` component with accessible form validation and double-click prevention.
+  - Dynamic table refresh without page reload.
+- **Output Rejected**:
+  - Initial suggestion to accept `tenantId` in the request body was rejected as a tenant boundary violation.
+- **Correction Made**:
+  - Enforced `tenantId` strictly from `req.tenantId` in the backend controller.
+- **Verification Performed**:
+  - 8 new integration and unit tests added.
+  - Backend tests: 36/36 passed. Frontend tests: 8/8 passed.
+
+---
+
+## Contribution Log Entry #7: Modern Academic SaaS Dashboard Redesign
+
+- **Tool Used**: Antigravity AI Assistant
+- **Prompt**:
+  > "Redesign the frontend UI to look and feel like a professionally designed, human-made academic SaaS/admin dashboard rather than an AI-generated interface. Use light theme, crisp typography, clean left sidebar, top header, dynamic date, and 4 dynamically calculated summary KPI cards."
+- **Output Accepted**:
+  - `Sidebar.tsx`: Professional left navigation with brand logo, 7 menu links, active page highlights, and bottom motivational support card.
+  - `Navbar.tsx`: Top header with tenant selector, notifications bell, user initials avatar, role badge, and Sign Out button.
+  - `Dashboard.tsx`: "Welcome Back!" heading, localized dynamic date card, and 4 dynamic summary KPI cards (Total Students, Ready, Developing, At Risk).
+  - `StudentTable.tsx`: Added student initials avatar badges and clean status dot badges (`● Ready`, `● Developing`, `● Needs Prep`, `● Incomplete`).
+  - `CompetencyTable.tsx`: Visual score progress bars (`progress-high`, `progress-med`, `progress-low`).
+  - `StudentDetails.tsx`: Student avatar header and clean score breakdown.
+  - `index.css`: Complete light SaaS design system with off-white background (`#f8fafc`), white card surfaces (`#ffffff`), slate typography, and corporate royal blue accents (`#2563eb`).
+- **Output Rejected**:
+  - Initial draft considered hardcoded KPI counts; rejected to preserve dynamic calculation from real authoritative data.
+- **Verification Performed**:
+  - Frontend test suite: 8/8 tests passed.
+  - Frontend build: Clean build with 0 TypeScript/Vite errors.
+  - Backend test suite: 36/36 tests passed.
+
+---
+
 ## Summary of Verification Evidence
 - Domain Unit Tests: 14/14 passed.
-- API Integration Tests: 10/10 passed.
+- API Integration Tests: 18/18 passed.
 - Idempotency & Concurrency Tests: 3/3 passed (all 3 concurrent identical requests succeed).
 - MongoDB Failure Injection Tests: 1/1 passed.
-- Frontend Resilience Tests: 4/4 passed (out-of-order discard, tenant switch abort, 409 conflict UI, refresh error data preservation).
-- Total Tests: 32/32 passed across all test suites.
+- Frontend Resilience Tests: 8/8 passed (out-of-order discard, tenant switch abort, 409 conflict UI, refresh error data preservation, AddStudentModal validation).
+- Total Tests: 44/44 passed across all test suites.
+

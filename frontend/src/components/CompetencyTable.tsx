@@ -59,7 +59,17 @@ export const CompetencyTable: React.FC<CompetencyTableProps> = ({
                 </td>
                 <td>
                   {ev ? (
-                    <strong className="score-badge-inline">{ev.score.toFixed(1)}%</strong>
+                    <div className="competency-score-wrapper">
+                      <strong className="score-badge-inline">{ev.score.toFixed(1)}%</strong>
+                      <div className="competency-progress-track" aria-hidden="true">
+                        <div
+                          className={`competency-progress-bar ${
+                            ev.score >= 80 ? 'progress-high' : ev.score >= 60 ? 'progress-med' : 'progress-low'
+                          }`}
+                          style={{ width: `${Math.min(100, Math.max(0, ev.score))}%` }}
+                        />
+                      </div>
+                    </div>
                   ) : (
                     <span className="badge-missing">Missing Attempt</span>
                   )}

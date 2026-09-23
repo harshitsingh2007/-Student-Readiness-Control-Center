@@ -23,6 +23,12 @@ interface StudentTableProps {
   onPageChange: (newPage: number) => void;
 }
 
+const getInitials = (name: string) => {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+};
+
 export const StudentTable: React.FC<StudentTableProps> = ({
   students,
   pagination,
@@ -93,8 +99,15 @@ export const StudentTable: React.FC<StudentTableProps> = ({
                 }}
               >
                 <td className="student-name-cell">
-                  <strong>{student.name}</strong>
-                  <span className="student-id-subtext">{student.id}</span>
+                  <div className="student-cell-flex">
+                    <div className="student-avatar-sm" aria-hidden="true">
+                      {getInitials(student.name)}
+                    </div>
+                    <div className="student-info-col">
+                      <strong className="student-name-text">{student.name}</strong>
+                      <span className="student-id-subtext">{student.id}</span>
+                    </div>
+                  </div>
                 </td>
                 <td className="student-email-cell">{student.email}</td>
                 <td className="student-score-cell">

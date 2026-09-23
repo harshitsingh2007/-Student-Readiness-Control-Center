@@ -9,7 +9,6 @@
 import React from 'react';
 import { UserProfile } from '../types/api';
 import { TenantSelector } from './TenantSelector';
-import { ChartBarIcon, BellIcon } from './Icons';
 
 interface NavbarProps {
   user: UserProfile | null;
@@ -23,7 +22,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   user,
   onSwitchTenant,
   onLogout,
-  onOpenAnalytics,
 }) => {
   const getInitials = (name: string) => {
     const parts = name.trim().split(/\s+/);
@@ -43,28 +41,6 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       <div className="top-header-right">
-        {onOpenAnalytics && (
-          <button
-            type="button"
-            className="top-header-icon-btn"
-            onClick={onOpenAnalytics}
-            aria-label="View Operational Analytics"
-            title="MongoDB Operational Analytics"
-          >
-            <ChartBarIcon size={18} />
-          </button>
-        )}
-
-        <button
-          type="button"
-          className="top-header-icon-btn"
-          aria-label="Notifications"
-          title="System Notifications"
-        >
-          <BellIcon size={18} />
-          <span className="notification-dot" />
-        </button>
-
         {user && (
           <div className="top-user-profile">
             <div className="top-user-avatar">

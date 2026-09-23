@@ -145,6 +145,26 @@ In compliance with the assessment's AI use disclosure policy, this document accu
 
 ---
 
+## Contribution Log Entry #8: Interactive Sidebar Views & Complete Navigation Router
+
+- **Tool Used**: Antigravity AI Assistant
+- **Prompt**:
+  > "Everything is ok but in the sidebar button is not working i think it just for the display but i want everything working."
+- **Output Accepted**:
+  - `AnalyticsView.tsx`: Real-time 24h operational event aggregation, latency percentiles, validation failure rates, and duplicate anomaly detection from MongoDB.
+  - `AssessmentsView.tsx`: Full competency assessment framework breakdown, 4 core competency weights (Frontend 30%, Backend 30%, Databases 25%, Problem Solving 15%), readiness threshold rules, and deterministic tie-breaking policy.
+  - `ReportsView.tsx`: Cohort readiness distribution analytics, percentage completion visual breakdown bar, A4 scoring drift audit, and print/export report feature.
+  - `OrganizationView.tsx`: Multi-tenant organization profile, tenant switcher, authorized staff directory, and non-disclosing 404 security architecture.
+  - `SettingsView.tsx`: System settings, storage engine health (PostgreSQL 18 & MongoDB), background outbox relay status, and evaluator session details.
+  - `Dashboard.tsx`: Added `viewMode="students"` support for dedicated student directory and roster management.
+  - `App.tsx`: Wired active tab router dynamically rendering each dedicated view upon sidebar click and clearing stale student selections.
+- **Verification Performed**:
+  - Frontend test suite: 8/8 passed.
+  - Frontend build: Clean build with 0 TypeScript/Vite errors.
+  - Backend test suite: 36/36 passed.
+
+---
+
 ## Summary of Verification Evidence
 - Domain Unit Tests: 14/14 passed.
 - API Integration Tests: 18/18 passed.

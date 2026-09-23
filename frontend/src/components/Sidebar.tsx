@@ -23,18 +23,17 @@ export type NavTab =
 interface SidebarProps {
   activeTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
-  onOpenAnalytics: () => void;
+  onOpenAnalytics?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   onSelectTab,
-  onOpenAnalytics,
 }) => {
-  const navItems: Array<{ id: NavTab; label: string; icon: string; action?: () => void }> = [
+  const navItems: Array<{ id: NavTab; label: string; icon: string }> = [
     { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
     { id: 'students', label: 'Students', icon: '👥' },
-    { id: 'analytics', label: 'Analytics', icon: '📈', action: onOpenAnalytics },
+    { id: 'analytics', label: 'Analytics', icon: '📈' },
     { id: 'assessments', label: 'Assessments', icon: '📝' },
     { id: 'reports', label: 'Reports', icon: '📑' },
     { id: 'organization', label: 'Organization', icon: '🏢' },
@@ -63,13 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <button
                   type="button"
                   className={`sidebar-nav-btn ${isActive ? 'active' : ''}`}
-                  onClick={() => {
-                    if (item.action) {
-                      item.action();
-                    } else {
-                      onSelectTab(item.id);
-                    }
-                  }}
+                  onClick={() => onSelectTab(item.id)}
                   aria-current={isActive ? 'page' : undefined}
                 >
                   <span className="sidebar-nav-icon">{item.icon}</span>

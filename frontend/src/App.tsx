@@ -20,6 +20,11 @@ import { Sidebar, NavTab } from './components/Sidebar';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { StudentPage } from './pages/StudentPage';
+import { AnalyticsView } from './pages/AnalyticsView';
+import { AssessmentsView } from './pages/AssessmentsView';
+import { ReportsView } from './pages/ReportsView';
+import { OrganizationView } from './pages/OrganizationView';
+import { SettingsView } from './pages/SettingsView';
 
 export const App: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -125,17 +130,83 @@ export const App: React.FC = () => {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return (
+          <Dashboard
+            currentTenantId={user.tenantId}
+            onSelectStudent={navigateToStudent}
+            showAnalyticsModal={showAnalyticsModal}
+            onCloseAnalyticsModal={() => setShowAnalyticsModal(false)}
+            viewMode="dashboard"
+          />
+        );
+      case 'students':
+        return (
+          <Dashboard
+            currentTenantId={user.tenantId}
+            onSelectStudent={navigateToStudent}
+            showAnalyticsModal={showAnalyticsModal}
+            onCloseAnalyticsModal={() => setShowAnalyticsModal(false)}
+            viewMode="students"
+          />
+        );
+      case 'analytics':
+        return <AnalyticsView currentTenantId={user.tenantId} />;
+      case 'assessments':
+        return (
+          <AssessmentsView
+            onNavigateToStudents={() => {
+              setActiveTab('students');
+              setSelectedStudentId(null);
+              window.history.pushState({}, '', '/');
+            }}
+          />
+        );
+      case 'reports':
+        return <ReportsView currentTenantId={user.tenantId} />;
+      case 'organization':
+        return (
+          <OrganizationView
+            user={user}
+            onSwitchTenant={handleSwitchTenant}
+          />
+        );
+      case 'settings':
+        return (
+          <SettingsView
+            user={user}
+            onLogout={handleLogout}
+          />
+        );
+      default:
+        return (
+          <Dashboard
+            currentTenantId={user.tenantId}
+            onSelectStudent={navigateToStudent}
+            showAnalyticsModal={showAnalyticsModal}
+            onCloseAnalyticsModal={() => setShowAnalyticsModal(false)}
+            viewMode="dashboard"
+          />
+        );
+    }
+  };
+
   return (
     <div className="app-shell">
       <Sidebar
         activeTab={activeTab}
         onSelectTab={(tab) => {
           setActiveTab(tab);
-          if (tab === 'dashboard' || tab === 'students') {
-            navigateToDashboard();
-          }
+          setSelectedStudentId(null);
+          window.history.pushState({}, '', '/');
         }}
-        onOpenAnalytics={() => setShowAnalyticsModal(true)}
+        onOpenAnalytics={() => {
+          setActiveTab('analytics');
+          setSelectedStudentId(null);
+          window.history.pushState({}, '', '/');
+        }}
       />
 
       <div className="app-main-area">
@@ -143,8 +214,15 @@ export const App: React.FC = () => {
           user={user}
           onSwitchTenant={handleSwitchTenant}
           onLogout={handleLogout}
-          onNavigateHome={navigateToDashboard}
-          onOpenAnalytics={() => setShowAnalyticsModal(true)}
+          onNavigateHome={() => {
+            setActiveTab('dashboard');
+            navigateToDashboard();
+          }}
+          onOpenAnalytics={() => {
+            setActiveTab('analytics');
+            setSelectedStudentId(null);
+            window.history.pushState({}, '', '/');
+          }}
         />
 
         <main className="main-content">
@@ -154,12 +232,7 @@ export const App: React.FC = () => {
               onBack={navigateToDashboard}
             />
           ) : (
-            <Dashboard
-              currentTenantId={user.tenantId}
-              onSelectStudent={navigateToStudent}
-              showAnalyticsModal={showAnalyticsModal}
-              onCloseAnalyticsModal={() => setShowAnalyticsModal(false)}
-            />
+            renderTabContent()
           )}
         </main>
       </div>

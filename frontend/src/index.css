@@ -514,31 +514,37 @@ a:hover {
    Dashboard Page & Components
    ========================================================================== */
 
-.dashboard-container {
+.dashboard-container, .view-container {
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
 
 /* SaaS Welcome Greeting */
-.dashboard-welcome-header {
+.dashboard-welcome-header, .view-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
 }
 
-.welcome-heading {
+.welcome-heading, .view-title {
   font-size: 24px;
   font-weight: 700;
   color: var(--slate-900);
   letter-spacing: -0.02em;
 }
 
-.welcome-subtext {
+.welcome-subtext, .view-subtitle {
   font-size: 14px;
   color: var(--slate-500);
   margin-top: 4px;
+}
+
+.view-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .welcome-date-badge {

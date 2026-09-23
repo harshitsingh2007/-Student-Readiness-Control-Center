@@ -19,15 +19,17 @@ import { StudentSummary } from '../types/student';
 interface DashboardProps {
   currentTenantId: string;
   onSelectStudent: (studentId: string) => void;
-  showAnalyticsModal: boolean;
-  onCloseAnalyticsModal: () => void;
+  showAnalyticsModal?: boolean;
+  onCloseAnalyticsModal?: () => void;
+  viewMode?: 'dashboard' | 'students';
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
   currentTenantId,
   onSelectStudent,
-  showAnalyticsModal,
-  onCloseAnalyticsModal,
+  showAnalyticsModal = false,
+  onCloseAnalyticsModal = () => {},
+  viewMode = 'dashboard',
 }) => {
   // Read initial filters from browser URL query string
   const initialUrlState = parseUrlQueryState(window.location.search);
@@ -98,90 +100,121 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="dashboard-container">
-      {/* SaaS Welcome Greeting & Date Banner */}
-      <div className="dashboard-welcome-header">
-        <div className="welcome-text-col">
-          <h1 className="welcome-heading">Welcome Back!</h1>
-          <p className="welcome-subtext">
-            Monitor, evaluate, and track student competency readiness across cohorts.
-          </p>
+      {viewMode === 'students' ? (
+        /* Dedicated Students Directory Header */
+        <div className="dashboard-welcome-header">
+          <div className="welcome-text-col">
+            <h1 className="welcome-heading">Student Directory & Cohort Roster</h1>
+            <p className="welcome-subtext">
+              Manage student enrollments, inspect competency readiness scores, and resolve concurrency versions.
+            </p>
+          </div>
+          <div className="toolbar-right">
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => setShowAddStudentModal(true)}
+            >
+              + Add New Student
+            </button>
+            <button
+              type="button"
+              className="btn-refresh"
+              onClick={refresh}
+              disabled={isLoading || isRefreshing}
+            >
+              🔄 Refresh List
+            </button>
+          </div>
         </div>
-        <div className="welcome-date-badge" aria-label="Today's Date">
-          <span className="date-icon">📅</span>
-          <span className="date-text">{formattedDate}</span>
-        </div>
-      </div>
+      ) : (
+        <>
+          {/* SaaS Welcome Greeting & Date Banner */}
+          <div className="dashboard-welcome-header">
+            <div className="welcome-text-col">
+              <h1 className="welcome-heading">Welcome Back!</h1>
+              <p className="welcome-subtext">
+                Monitor, evaluate, and track student competency readiness across cohorts.
+              </p>
+            </div>
+            <div className="welcome-date-badge" aria-label="Today's Date">
+              <span className="date-icon">📅</span>
+              <span className="date-text">{formattedDate}</span>
+            </div>
+          </div>
 
-      {/* 4 Dynamic Metric KPI Cards */}
-      <div className="kpi-grid">
-        <div className="kpi-card kpi-total">
-          <div className="kpi-icon-wrapper">
-            <span className="kpi-icon">👥</span>
-          </div>
-          <div className="kpi-details">
-            <span className="kpi-label">Total Students</span>
-            <span className="kpi-value">{totalCount}</span>
-            <span className="kpi-note">Enrolled in cohort</span>
-          </div>
-        </div>
+          {/* 4 Dynamic Metric KPI Cards */}
+          <div className="kpi-grid">
+            <div className="kpi-card kpi-total">
+              <div className="kpi-icon-wrapper">
+                <span className="kpi-icon">👥</span>
+              </div>
+              <div className="kpi-details">
+                <span className="kpi-label">Total Students</span>
+                <span className="kpi-value">{totalCount}</span>
+                <span className="kpi-note">Enrolled in cohort</span>
+              </div>
+            </div>
 
-        <div className="kpi-card kpi-ready">
-          <div className="kpi-icon-wrapper">
-            <span className="kpi-icon">✅</span>
-          </div>
-          <div className="kpi-details">
-            <span className="kpi-label">Ready</span>
-            <span className="kpi-value">{readyCount}</span>
-            <span className="kpi-note kpi-note-ready">Target met (≥ 80%)</span>
-          </div>
-        </div>
+            <div className="kpi-card kpi-ready">
+              <div className="kpi-icon-wrapper">
+                <span className="kpi-icon">✅</span>
+              </div>
+              <div className="kpi-details">
+                <span className="kpi-label">Ready</span>
+                <span className="kpi-value">{readyCount}</span>
+                <span className="kpi-note kpi-note-ready">Target met (≥ 80%)</span>
+              </div>
+            </div>
 
-        <div className="kpi-card kpi-developing">
-          <div className="kpi-icon-wrapper">
-            <span className="kpi-icon">⚡</span>
-          </div>
-          <div className="kpi-details">
-            <span className="kpi-label">Developing</span>
-            <span className="kpi-value">{developingCount}</span>
-            <span className="kpi-note kpi-note-dev">In progress (50–79%)</span>
-          </div>
-        </div>
+            <div className="kpi-card kpi-developing">
+              <div className="kpi-icon-wrapper">
+                <span className="kpi-icon">⚡</span>
+              </div>
+              <div className="kpi-details">
+                <span className="kpi-label">Developing</span>
+                <span className="kpi-value">{developingCount}</span>
+                <span className="kpi-note kpi-note-dev">In progress (50–79%)</span>
+              </div>
+            </div>
 
-        <div className="kpi-card kpi-risk">
-          <div className="kpi-icon-wrapper">
-            <span className="kpi-icon">⚠️</span>
+            <div className="kpi-card kpi-risk">
+              <div className="kpi-icon-wrapper">
+                <span className="kpi-icon">⚠️</span>
+              </div>
+              <div className="kpi-details">
+                <span className="kpi-label">At Risk / Incomplete</span>
+                <span className="kpi-value">{atRiskCount}</span>
+                <span className="kpi-note kpi-note-risk">Needs attention</span>
+              </div>
+            </div>
           </div>
-          <div className="kpi-details">
-            <span className="kpi-label">At Risk / Incomplete</span>
-            <span className="kpi-value">{atRiskCount}</span>
-            <span className="kpi-note kpi-note-risk">Needs attention</span>
-          </div>
-        </div>
-      </div>
 
-      {/* Action Toolbar */}
-      <div className="dashboard-toolbar">
-        <div className="toolbar-left">
-          <h2 className="toolbar-section-title">Cohort Overview</h2>
-        </div>
-        <div className="toolbar-right">
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => setShowAddStudentModal(true)}
-          >
-            + Add New Student
-          </button>
-          <button
-            type="button"
-            className="btn-refresh"
-            onClick={refresh}
-            disabled={isLoading || isRefreshing}
-          >
-            🔄 Refresh List
-          </button>
-        </div>
-      </div>
+          {/* Action Toolbar */}
+          <div className="dashboard-toolbar">
+            <div className="toolbar-left">
+              <h2 className="toolbar-section-title">Cohort Overview</h2>
+            </div>
+            <div className="toolbar-right">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => setShowAddStudentModal(true)}
+              >
+                + Add New Student
+              </button>
+              <button
+                type="button"
+                className="btn-refresh"
+                onClick={refresh}
+                disabled={isLoading || isRefreshing}
+              >
+                🔄 Refresh List
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {notification && (
         <div

@@ -176,21 +176,6 @@ export const AttemptForm: React.FC<AttemptFormProps> = ({
           />
         </div>
 
-        {/* Idempotency Demonstration Badge */}
-        <div className="idempotency-info-box">
-          <span className="idemp-label">Client Idempotency Key:</span>
-          <code className="idemp-key">{idempotencyKey}</code>
-          <button
-            type="button"
-            className="btn-link-small"
-            onClick={() => setIdempotencyKey(generateIdempotencyKey())}
-            disabled={isSubmitting}
-            title="Generate fresh idempotency key"
-          >
-            Regenerate Key
-          </button>
-        </div>
-
         <div className="form-actions">
           <button
             type="submit"

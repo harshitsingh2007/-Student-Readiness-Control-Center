@@ -57,3 +57,16 @@ export async function getStudentActivity(id: string, page = 1, signal?: AbortSig
     signal,
   });
 }
+
+export interface CreateStudentPayload {
+  name: string;
+  email: string;
+}
+
+export async function createStudent(payload: CreateStudentPayload, signal?: AbortSignal): Promise<{ student: StudentSummary; message: string }> {
+  return apiClient<{ student: StudentSummary; message: string }>('/students', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    signal,
+  });
+}

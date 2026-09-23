@@ -10,6 +10,7 @@
 import { describe, test, expect, vi } from 'vitest';
 import { render, screen, fireEvent, renderHook, act } from '@testing-library/react';
 import { StudentDetails } from '../components/StudentDetails';
+import { AddStudentModal } from '../components/AddStudentModal';
 import { useStudents } from '../hooks/useStudents';
 import * as studentApi from '../services/studentApi';
 import { StudentDetail } from '../types/student';
@@ -221,6 +222,101 @@ describe('Frontend State Correctness & Resilience', () => {
       expect(screen.getByText(/Reload Latest Student Data/i)).toBeInTheDocument();
 
       mockUpdate.mockRestore();
+    });
+  });
+
+  describe('AddStudentModal Component & Validation', () => {
+    test('renders form fields with Full Name and Email', () => {
+      render(<AddStudentModal isOpen={true} onClose={() => {}} onStudentCreated={() => {}} />);
+
+      expect(screen.getByText(/Add New Student/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Full Name/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Email/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Create Student/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Cancel/i })).toBeInTheDocument();
+    });
+
+    test('validates empty name and invalid email format', async () => {
+      const mockCreate = vi.spyOn(studentApi, 'createStudent');
+      render(<AddStudentModal isOpen={true} onClose={() => {}} onStudentCreated={() => {}} />);
+
+      const nameInput = screen.getByLabelText(/Full Name/i);
+      const emailInput = screen.getByLabelText(/Email/i);
+      const submitBtn = screen.getByRole('button', { name: /Create Student/i });
+
+      // Enter invalid data
+      fireEvent.change(nameInput, { target: { value: '   ' } });
+      fireEvent.change(emailInput, { target: { value: 'invalid-email' } });
+
+      await act(async () => {
+        fireEvent.click(submitBtn);
+      });
+
+      expect(screen.getByText(/Full name is required/i)).toBeInTheDocument();
+      expect(screen.getByText(/Please enter a valid email address/i)).toBeInTheDocument();
+      expect(mockCreate).not.toHaveBeenCalled();
+
+      mockCreate.mockRestore();
+    });
+
+    test('submits valid student and invokes onStudentCreated callback', async () => {
+      const onCreated = vi.fn();
+      const onClose = vi.fn();
+      const mockStudent = {
+        id: 'student-new-1',
+        name: 'Kiran Rao',
+        email: 'kiran@alpha.edu',
+        version: 1,
+        currentScore: null,
+        currentReadiness: 'INCOMPLETE' as const,
+        createdAt: '2026-09-23T00:00:00Z',
+        updatedAt: '2026-09-23T00:00:00Z',
+      };
+
+      const mockCreate = vi.spyOn(studentApi, 'createStudent').mockResolvedValue({
+        student: mockStudent,
+        message: 'Student created successfully.',
+      });
+
+      render(<AddStudentModal isOpen={true} onClose={onClose} onStudentCreated={onCreated} />);
+
+      fireEvent.change(screen.getByLabelText(/Full Name/i), { target: { value: 'Kiran Rao' } });
+      fireEvent.change(screen.getByLabelText(/Email/i), { target: { value: 'kiran@alpha.edu' } });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Create Student/i }));
+      });
+
+      expect(mockCreate).toHaveBeenCalledWith({
+        name: 'Kiran Rao',
+        email: 'kiran@alpha.edu',
+      });
+      expect(onCreated).toHaveBeenCalledWith(mockStudent);
+      expect(onClose).toHaveBeenCalled();
+
+      mockCreate.mockRestore();
+    });
+
+    test('displays duplicate email error when backend returns 409 Conflict', async () => {
+      const mockCreate = vi.spyOn(studentApi, 'createStudent').mockRejectedValue(
+        new ApiError(409, {
+          code: 'DUPLICATE_STUDENT_EMAIL',
+          message: 'A student with this email already exists.',
+        })
+      );
+
+      render(<AddStudentModal isOpen={true} onClose={() => {}} onStudentCreated={() => {}} />);
+
+      fireEvent.change(screen.getByLabelText(/Full Name/i), { target: { value: 'Duplicate Student' } });
+      fireEvent.change(screen.getByLabelText(/Email/i), { target: { value: 'aarav@alpha.edu' } });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Create Student/i }));
+      });
+
+      expect(await screen.findByText(/A student with this email already exists in this organization/i)).toBeInTheDocument();
+
+      mockCreate.mockRestore();
     });
   });
 });

@@ -13,6 +13,8 @@ import { useStudents } from '../hooks/useStudents';
 import { parseUrlQueryState, buildUrlQueryString } from '../utils/urlState';
 import { getActivityAnalytics } from '../services/attemptApi';
 import { ActivityAnalyticsSummary } from '../types/attempt';
+import { AddStudentModal } from '../components/AddStudentModal';
+import { StudentSummary } from '../types/student';
 
 interface DashboardProps {
   currentTenantId: string;
@@ -41,6 +43,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
   // Operational Analytics state
   const [analytics, setAnalytics] = useState<ActivityAnalyticsSummary | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
+  // Add Student Modal state
+  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const handleStudentCreated = (newStudent: StudentSummary) => {
+    refresh();
+    setNotification({
+      type: 'success',
+      message: `Student "${newStudent.name}" created successfully!`,
+    });
+    setTimeout(() => setNotification(null), 6000);
+  };
 
   useEffect(() => {
     if (showAnalyticsModal) {
@@ -75,6 +90,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
         <div className="dashboard-actions">
           <button
             type="button"
+            className="btn-primary"
+            onClick={() => setShowAddStudentModal(true)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            + Add New Student
+          </button>
+          <button
+            type="button"
             className="btn-refresh"
             onClick={refresh}
             disabled={isLoading || isRefreshing}
@@ -83,6 +106,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </button>
         </div>
       </div>
+
+      {notification && (
+        <div
+          className={`form-feedback feedback-${notification.type}`}
+          role="status"
+          style={{ marginBottom: '20px' }}
+        >
+          {notification.type === 'success' ? '✅ ' : '❌ '}
+          {notification.message}
+        </div>
+      )}
 
       {/* Filter Card */}
       <StudentFilters
@@ -182,6 +216,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
       )}
+
+      {/* Add New Student Modal */}
+      <AddStudentModal
+        isOpen={showAddStudentModal}
+        onClose={() => setShowAddStudentModal(false)}
+        onStudentCreated={handleStudentCreated}
+      />
     </div>
   );
 };

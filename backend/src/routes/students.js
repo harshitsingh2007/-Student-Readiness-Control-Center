@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { getStudents, getStudentById, updateStudent } = require('../controllers/studentController');
+const { getStudents, getStudentById, updateStudent, createStudent } = require('../controllers/studentController');
 const { createAttempt } = require('../controllers/attemptController');
 const { getStudentActivity } = require('../controllers/activityController');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { enforceTenantIsolation } = require('../middleware/tenant');
-const { validatePagination, validateAttemptPayload, validateStudentUpdatePayload } = require('../middleware/validation');
+const { validatePagination, validateAttemptPayload, validateStudentUpdatePayload, validateStudentCreatePayload } = require('../middleware/validation');
 
 // All student routes require authentication & strict tenant isolation
 router.use(authenticate);
@@ -13,6 +13,9 @@ router.use(enforceTenantIsolation);
 
 // GET /api/students - List students with server search, filter, sort, pagination
 router.get('/', validatePagination, getStudents);
+
+// POST /api/students - Create new student under authenticated tenant
+router.post('/', requireRole(['ADMIN', 'EVALUATOR']), validateStudentCreatePayload, createStudent);
 
 // GET /api/students/:id - Get student details & calculated readiness
 router.get('/:id', getStudentById);

@@ -10,8 +10,10 @@
  *      and lost updates from concurrent evaluator edits.
  */
 
-const { query } = require('../config/postgres');
+const { query, getClient } = require('../config/postgres');
+const { v4: uuidv4 } = require('uuid');
 const { getActiveCompetencies, computeReadinessFromAttempts } = require('../services/readinessService');
+const { recordOutboxEvent, flushPendingOutboxEvents } = require('../services/eventPublisher');
 
 /**
  * GET /api/students
@@ -230,8 +232,78 @@ const updateStudent = async (req, res, next) => {
   }
 };
 
+/**
+ * POST /api/students
+ * Creates a new student record scoped to the authenticated tenant.
+ * Initializes record with version 1, NULL score, and INCOMPLETE readiness.
+ * Transactionally writes a student.created event to the PostgreSQL outbox.
+ */
+const createStudent = async (req, res, next) => {
+  const client = await getClient();
+  try {
+    const tenantId = req.tenantId;
+    const { name, email } = req.validatedStudent;
+    const tenantSlug = tenantId.replace(/^tenant-/, '');
+    const studentId = `student-${tenantSlug}-${uuidv4()}`;
+
+    await client.query('BEGIN');
+
+    const insertSql = `
+      INSERT INTO students (id, tenant_id, name, email, version, current_score, current_readiness)
+      VALUES ($1, $2, $3, $4, 1, NULL, 'INCOMPLETE')
+      RETURNING id, name, email, version, current_score::float as "currentScore", current_readiness as "currentReadiness", created_at as "createdAt", updated_at as "updatedAt";
+    `;
+
+    let insertRes;
+    try {
+      insertRes = await client.query(insertSql, [studentId, tenantId, name, email]);
+    } catch (dbErr) {
+      await client.query('ROLLBACK');
+      if (dbErr.code === '23505') {
+        return res.status(409).json({
+          code: 'DUPLICATE_STUDENT_EMAIL',
+          message: 'A student with this email already exists.',
+          requestId: req.requestId,
+          fieldErrors: { email: 'A student with this email already exists in this organization.' },
+        });
+      }
+      throw dbErr;
+    }
+
+    const student = insertRes.rows[0];
+
+    // Transactionally record operational outbox event
+    await recordOutboxEvent(client, tenantId, 'student.created', {
+      studentId: student.id,
+      name: student.name,
+      email: student.email,
+      actorId: req.user.userId,
+      actorRole: req.user.role,
+    });
+
+    await client.query('COMMIT');
+
+    // Asynchronously flush outbox event to MongoDB
+    flushPendingOutboxEvents().catch((err) => {
+      console.warn('[StudentController] Outbox flush warning:', err.message);
+    });
+
+    return res.status(201).json({
+      student,
+      message: 'Student created successfully.',
+      requestId: req.requestId,
+    });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    next(err);
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   getStudents,
   getStudentById,
   updateStudent,
+  createStudent,
 };

@@ -1,7 +1,7 @@
 # Student Readiness Control Center
 
-[![Backend Tests](https://img.shields.io/badge/backend_tests-28%2F28_passed-brightgreen.svg)]()
-[![Frontend Tests](https://img.shields.io/badge/frontend_tests-4%2F4_passed-brightgreen.svg)]()
+[![Backend Tests](https://img.shields.io/badge/backend_tests-36%2F36_passed-brightgreen.svg)]()
+[![Frontend Tests](https://img.shields.io/badge/frontend_tests-8%2F8_passed-brightgreen.svg)]()
 [![Node](https://img.shields.io/badge/node->=18.0.0-blue.svg)]()
 [![React](https://img.shields.io/badge/react-18.3.1-blue.svg)]()
 [![TypeScript](https://img.shields.io/badge/typescript-5.4.5-blue.svg)]()
@@ -232,24 +232,24 @@ Open **`http://localhost:5175`** in your browser.
 
 ## 9. Automated Test Suite
 
-### Run All Backend Tests (28 Tests)
+### Run All Backend Tests (36 Tests)
 ```bash
 cd backend
 npm test
 ```
 Tests executed:
 - `tests/domain/readinessService.test.js`: Domain boundary thresholds, tie-breaking, missing required vs. optional competencies, mathematical invariants (14 tests).
-- `tests/integration/api.test.js`: Authentication, authorization, tenant isolation, non-disclosing 404, optimistic concurrency (7 tests).
+- `tests/integration/api.test.js`: Authentication, authorization, tenant isolation, non-disclosing 404, optimistic concurrency, and dynamic student creation (15 tests).
 - `tests/idempotency/idempotency.test.js`: 3 parallel identical requests producing 1 attempt, stored replay, fingerprint mismatch rejection (5 tests).
 - `tests/integration/failureInjection.test.js`: Simulated MongoDB outage, outbox persistence, and recovery flushing without duplicate events (2 tests).
 
-### Run Frontend Resilience Tests (4 Tests)
+### Run Frontend Resilience & Component Tests (8 Tests)
 ```bash
 cd frontend
 npm test
 ```
 Tests executed:
-- `frontendResilience.test.tsx`: Out-of-order response discard, `AbortController` cancellation on fast tenant switch, 409 Conflict UI rendering, and preserving previous data on background refresh failure.
+- `frontendResilience.test.tsx`: Out-of-order response discard, `AbortController` cancellation on fast tenant switch, 409 Conflict UI rendering, background refresh data preservation, and `AddStudentModal` validation/submission (8 tests).
 
 ---
 
@@ -334,5 +334,5 @@ Advanced Engineering     Production Build        Incident Investigation
 - [x] Transactional outbox resilience during simulated MongoDB outage verified
 - [x] React URL-persisted search, filters, pagination, and debounce verified
 - [x] Seeded defect (cross-tenant leakage on fast account switch) resolved across all trust boundaries
-- [x] All 28 backend tests and 4 frontend tests pass with zero failures
+- [x] All 36 backend tests and 8 frontend tests pass with zero failures
 - [x] `INCIDENT.md`, `DECISIONS.md`, `AI_LOG.md`, `PULL_REQUEST.md`, `docs/API.md`, `docs/ARCHITECTURE.md`, and `docs/DEFENSE_GUIDE.md` complete

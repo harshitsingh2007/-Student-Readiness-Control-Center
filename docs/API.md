@@ -96,6 +96,44 @@ Retrieves paginated students strictly scoped to the caller's authenticated `tena
 
 ---
 
+### `POST /api/students`
+Creates a new student record strictly scoped to the caller's authenticated `tenantId`.
+Initializes the student with `version = 1`, `currentScore = null`, and `currentReadiness = "INCOMPLETE"`.
+
+**Authorization**: `ADMIN`, `EVALUATOR`
+
+**Request Body**:
+```json
+{
+  "name": "Rahul Kumar",
+  "email": "rahul@alpha.edu"
+}
+```
+
+**Response `201 Created`**:
+```json
+{
+  "student": {
+    "id": "student-alpha-a719c298-5efc-4e89-8d59-5da7b5da7fc2",
+    "name": "Rahul Kumar",
+    "email": "rahul@alpha.edu",
+    "version": 1,
+    "currentScore": null,
+    "currentReadiness": "INCOMPLETE",
+    "createdAt": "2026-09-23T07:35:00.000Z",
+    "updatedAt": "2026-09-23T07:35:00.000Z"
+  },
+  "message": "Student created successfully.",
+  "requestId": "req_..."
+}
+```
+
+**Error Responses**:
+- `400 Bad Request` (`VALIDATION_ERROR`): Name or email missing, empty, invalid format, or exceeding 255 characters.
+- `409 Conflict` (`DUPLICATE_STUDENT_EMAIL`): A student with this email already exists in this tenant.
+
+---
+
 ### `GET /api/students/:id`
 Retrieves complete details for a student, latest attempt per competency, and authoritative readiness.
 

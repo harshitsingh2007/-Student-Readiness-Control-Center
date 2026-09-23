@@ -132,9 +132,48 @@ const validateStudentUpdatePayload = (req, res, next) => {
   next();
 };
 
+/**
+ * Validates student creation payload (POST /api/students).
+ * Strictly requires non-empty name and valid email.
+ */
+const validateStudentCreatePayload = (req, res, next) => {
+  const { name, email } = req.body || {};
+  const fieldErrors = {};
+
+  if (name === undefined || name === null || typeof name !== 'string' || name.trim().length === 0) {
+    fieldErrors.name = 'Full name is required.';
+  } else if (name.trim().length > 255) {
+    fieldErrors.name = 'Name cannot exceed 255 characters.';
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (email === undefined || email === null || typeof email !== 'string' || !emailRegex.test(email.trim())) {
+    fieldErrors.email = 'A valid email address is required.';
+  } else if (email.trim().length > 255) {
+    fieldErrors.email = 'Email cannot exceed 255 characters.';
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return res.status(400).json({
+      code: 'VALIDATION_ERROR',
+      message: 'Student creation payload failed validation.',
+      requestId: req.requestId,
+      fieldErrors,
+    });
+  }
+
+  req.validatedStudent = {
+    name: name.trim(),
+    email: email.trim().toLowerCase(),
+  };
+
+  next();
+};
+
 module.exports = {
   allowlistFields,
   validatePagination,
   validateAttemptPayload,
   validateStudentUpdatePayload,
+  validateStudentCreatePayload,
 };
